@@ -259,6 +259,8 @@ class Engine:
 
     @classmethod
     def from_settings(cls, settings: Settings, spider: Spider, middlewareManager: MiddlewareManager):
+        if middlewareManager is None:
+            middlewareManager = MiddlewareManager()
         coroutine_pool = PyCoroutinePool.from_setting(settings)
         obj = cls(
             scheduler=Scheduler.from_settings(settings),

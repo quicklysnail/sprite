@@ -3,10 +3,9 @@ __author__ = 'liyong'
 __date__ = '2019-08-17 22:47'
 
 
-
 import signal
 
-from sprite.utils.log import get_logger,set_logger
+from sprite.utils.log import get_logger, set_logger
 from sprite.settings import Settings
 from sprite.middlewaremanager import MiddlewareManager
 from sprite.spider import Spider
@@ -16,17 +15,14 @@ from sprite.core.engine import Engine
 logger = get_logger()
 
 
-
-
-
 class Crawler:
-    def __init__(self, spider:Spider, middlewareManager:MiddlewareManager, settings:Settings=None,server:str=None):
+    def __init__(self, spider: Spider, middlewareManager: MiddlewareManager=None, settings: Settings = None, server: str = None):
         self.spider = spider
         self._settings = settings or Settings()
         self._settings.freeze()
-        self._engine = Engine.from_settings(settings=self._settings, spider=self.spider, middlewareManager=middlewareManager)
+        self._engine = Engine.from_settings(
+            settings=self._settings, spider=self.spider, middlewareManager=middlewareManager)
         self._server = server or f'{self._settings.get("SERVER_IP")}:{self._settings.getint("SERVER_PORT")}'
-
 
     def run(self):
         set_logger(self._settings)
@@ -36,23 +32,15 @@ class Crawler:
         signal.signal(signal.SIGTERM, self._close)  # SIGTERM 关闭程序信号
         signal.signal(signal.SIGINT, self._close)  # 接收ctrl+c 信号
 
-
-
-    def _close(self, signal_num:int, frame):
+    def _close(self, signal_num: int, frame):
         # 关闭引擎
         if self._engine.isClose():
             return
         logger.info(f'关闭sprite')
         self._engine.close()
 
-
     # def _register_crawl(self):
     #     client_call(self._server,"register_crawl", self)
-
-
-
-
-
 
 
 # class CrawlerRunner:
