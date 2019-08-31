@@ -1,0 +1,4 @@
+w3lib==1.20.0
+bitarray==1.0.1
+httptools==0.0.13
+typing==3.7.4.1
