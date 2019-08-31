@@ -1,7 +1,7 @@
 # sprite
 基于python协程池、用法灵活的轻量级高性能爬虫框架
 
-# Overview
+# overview
 sprite is an python 3.6+ web scraping micro-framework based on asyncio coroutine pool.
 
 
