@@ -104,13 +104,11 @@ class PyCoroutinePool:
     async def _cancel_tasks(self):  # 取消任务
         tasks = []
         for task in asyncio.Task.all_tasks():  # 获取所有在事情循环中的task
-            if task is not asyncio.tasks.Task.current_task():  # 这个task目前没有在运行
-                tasks.append(task)
-                task.cancel()  # 取消task
+            if not task.current_task() and not task.cancelled():
+                tasks.append(task.cancel())  # 取消task
         # print("开始取消任务")
         await asyncio.gather(*tasks, return_exceptions=True)
-        self._loop.stop()
-        # self._stopEventLoopSingal.set()
+
 
     # 线程阻塞判断协程池时候已经停止运行
     def isStoped(self) -> bool:
@@ -138,8 +136,9 @@ class PyCoroutinePool:
             # print("发送信号完毕！！")
 
     async def _stop_on_wait(self):
-        while len(asyncio.Task.all_tasks()) > 1:
-            await asyncio.sleep(0.001)
+        # while len(self._ready) > 0:
+        #     asyncio.sleep(0.001)
+        await self._cancel_tasks()
         self._loop.stop()
         self._stopEventLoopSingal.set()
         logger.info(f'协程池关闭')

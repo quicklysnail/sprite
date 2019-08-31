@@ -10,6 +10,7 @@ from .spider import Spider
 from .crawl import Crawler
 from .core.download import Downloader
 from .item import Field
+from .utils.coroutinePool import PyCoroutinePool
 
 
 __version__ = "0.1.0"

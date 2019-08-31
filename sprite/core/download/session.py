@@ -8,7 +8,7 @@ import uuid
 from typing import Union
 from urllib.parse import urlencode
 from typing import List
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, TimeoutError
 from .limits import RequestRate
 from .pool import ConnectionPool
 from .url import URL
@@ -21,6 +21,7 @@ from sprite.utils.decoders import MultipartEncoder
 from sprite.http.cookies import SessionCookiesJar
 import json as json_module
 from .retries import RetryStrategy
+from .exceptions import OpenConnectionFailed
 
 URL_ENCODING = 'utf-8'
 BODY_ENCODING = 'utf-8'
@@ -194,7 +195,7 @@ class Session:
         return url
 
     async def request(self, url: str = '/', stream: bool = None, follow_redirects: bool = None,
-                      max_redirects: int = 30, decode: bool = True, ssl=None, timeout=ClientDefaults.TIMEOUT,
+                      max_redirects: int = 30, decode: bool = None, ssl=None, timeout:int=None,
                       retries: Union[RetryStrategy, int] = None, cookies: dict = None,
                       headers: dict = None, method: str = 'GET', query: dict = None,
                       json: dict = None, ignore_prefix: bool = False, body=None,
@@ -209,6 +210,7 @@ class Session:
         follow_redirects = follow_redirects if follow_redirects is not None else self.follow_redirects
         max_redirects = max_redirects if max_redirects is not None else self.max_redirects
         decode = decode if decode else self.decode
+        timeout = timeout if timeout else self.timeout
         ssl = ssl if ssl is not None else self.ssl
         # 配置重试策略
         # retries = retries.clone() if retries is not None else RetryStrategy()
@@ -273,7 +275,7 @@ class Session:
 
     # session的入口方法， 这个方法在超时或者连接失败或者多次尝试失败的情况下，会抛出异常的error（ConnectionError, TimeoutError）
     async def get(self, url: str = '', stream: bool = None, follow_redirects: bool = None, max_redirects: int = 30,
-                  decode: bool = None, ssl=None, timeout=ClientDefaults.TIMEOUT,
+                  decode: bool = None, ssl=None, timeout:int=None,
                   retries: RetryStrategy = None, headers: dict = None, cookies: dict = None,
                   query: dict = None, ignore_prefix: bool = False, proxy: str = None) -> Response:
 

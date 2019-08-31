@@ -150,10 +150,9 @@ class Engine:
             response = await self._downloader.request(request=request)
             if response.error:
                 self._failed_request_count += 1
-                logger.error(
-                    f'downloaded request failure: {request.url} {request.query}  [failure message: {response.error}]')
+                logger.info(
+                    f'downloaded request failure: {request.url} {request.query}')
             else:
-
                 logger.debug(
                     f'downloaded request: {request.url}[{response.status}]'
                 )

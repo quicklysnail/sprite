@@ -3,16 +3,17 @@ __author__ = 'liyong'
 __date__ = '2019-07-20 22:05'
 
 import asyncio
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, wait_for
 
 from collections import deque
 from .connection import Connection, SECURE_CONTEXT, INSECURE_CONTEXT
 from .proxy import ProxyHandler
+from .exceptions import OpenConnectionFailed
 
 
 class ConnectionPool:
     __slots__ = ('loop', 'host', 'port', 'protocol', 'max_connections', 'connections', 'available_connections',
-                 'keep_alive', 'wait_connection_available', 'proxy')
+                 'keep_alive', 'wait_connection_available', 'proxy', 'timeout')
 
     def __init__(self, loop: AbstractEventLoop, host: str, port: int, protocol: str, keep_alive: bool = True,
                  proxy: str = None):
@@ -44,7 +45,7 @@ class ConnectionPool:
                 'loop': self.loop,
             }
         # 配置https的ssl
-        if self.proxy is None and self.protocol == 'https':
+        if self.protocol == 'https':
             if ssl is False:
                 args['ssl'] = INSECURE_CONTEXT
             elif ssl is None:
@@ -53,6 +54,7 @@ class ConnectionPool:
                 args['ssl'] = ssl
         # 在协程里面创建一个socket连接
         #  (host=None, port=None, *, loop=None, limit=None, ssl=None, family=0, proto=0, flags=0, sock=None, local_addr=None, server_hostname=None, ssl_handshake_timeout=None)
+        # 会一直阻塞着等待连接
         reader, writer = await asyncio.open_connection(**args)
         # 实例化一个connection
         connection = Connection(self.loop, reader, writer, self)

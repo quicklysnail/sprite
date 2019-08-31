@@ -7,7 +7,7 @@ from queue import Queue
 import traceback
 from typing import Union
 from typing import List
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, TimeoutError
 from .limits import RequestRate
 from .pool import ConnectionPool
 from sprite.http.request import Request
@@ -93,12 +93,16 @@ class Downloader:
                 return response
             # 请求失败
             except (ConnectionError, TimeoutError) as error:
+                if isinstance(error, ConnectionError):
+                    logger.info(f'find one connection of error')
+                elif isinstance(error, TimeoutError):
+                    logger.info(f'find one timeout of error')
                 response = Response(url=request.url, status=400, headers=request.headers,
                                     request=request, error=error)
                 self.addResponse(response)
                 return response
             except Exception as error:
-                logger.error(f'下载过程中发现一个错误！丢失request！\n{traceback.format_exc()}')
+                logger.info(f'下载过程中发现一个错误！丢失request！\n{traceback.format_exc()}')
                 self.addResponse(error)
                 raise error
 
