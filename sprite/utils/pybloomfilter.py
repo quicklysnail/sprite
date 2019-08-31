@@ -5,7 +5,7 @@ __date__ = '2019/8/6 19:46'
 import math
 import hashlib
 import bitarray
-from spritemaster.utils import  is_string_io
+from io import BytesIO
 from struct import unpack, pack, calcsize
 
 
@@ -15,6 +15,14 @@ __author__  = "Jay Baird <jay.baird@me.com>, Bob Ippolito <bob@redivi.com>,\
                Alex Brasetvik <alex@brasetvik.com>,\
                Matt Bachmann <bachmann.matt@gmail.com>,\
               "
+
+
+
+def is_string_io(instance):
+    return isinstance(instance, BytesIO)
+
+
+
 
 def make_hashfuncs(num_slices, num_bits):
     if num_bits >= (1 << 31):

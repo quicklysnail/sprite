@@ -12,13 +12,10 @@ from sprite import Crawler
 from examples.test_spider_one.middleware import test_middleware
 
 
-
-
 class GaodeSpider(Spider):
     name = "test_spider"
 
-
-    async def start_request(self):
+    def start_request(self):
         headers = {
                 'Accept': 'application/json, text/javascript, */*; q=0.01',
                 'Accept-Encoding': 'gzip, deflate',
@@ -32,7 +29,6 @@ class GaodeSpider(Spider):
                           "https://www.douyu.com/japi/search/api/getHotList"]
         for url in start_requests:
             yield sprite.Request(url=url,headers=headers, callback=self.parse, dont_filter=True)
-
 
     async def parse(self, response:Response):
         self.logger.info("执行parse")
@@ -52,7 +48,6 @@ class GaodeSpider(Spider):
         for url in start_requests:
             print("抛出一个请求！！！")
             yield sprite.Request(url=url, headers=headers, callback=self.test_parse, dont_filter=True)
-
 
     async def test_parse(self, response:Response):
         self.logger.info("test_parse")

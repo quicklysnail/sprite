@@ -6,7 +6,7 @@ import time
 import traceback
 import asyncio
 import threading
-from typing import  Callable, Coroutine
+from typing import Callable, Coroutine
 from types import AsyncGeneratorType
 from sprite.core.scheduler import Slot, Scheduler
 from sprite.core.download import Downloader
@@ -19,6 +19,7 @@ from sprite.http.response import Response
 from sprite.utils.log import get_logger
 from sprite.item import Item
 from sprite.utils.request import Counter
+from sprite.utils.asyncHandler import detailCallable
 
 logger = get_logger()
 
@@ -45,7 +46,8 @@ class Engine:
         self._failed_request_count = 0
 
         self._item_counter = Counter(unit=settings.getint("ITEM_COUNTER_UNIT"))
-        self._response_counter = Counter(unit=settings.getint("RESPONSE_COUNTER_UNIT"))
+        self._response_counter = Counter(
+            unit=settings.getint("RESPONSE_COUNTER_UNIT"))
 
     def isClose(self) -> bool:
         if self._running.is_set():
@@ -62,12 +64,14 @@ class Engine:
         # 查询调度器中是否填充了request，如果没有直接退出程序
         self._init.wait()
         if not self._scheduler.has_pending_requests():
-            logger.error("scheduler 为空，没有构造start request或者填充start request失败, 关闭程序")
+            logger.error(
+                "scheduler 为空，没有构造start request或者填充start request失败, 关闭程序")
             self.close()
             return
 
         # 执行爬虫中间件
-        self._coroutine_pool.go(self._middlewareManager.process_spider_start(self._spider))
+        self._coroutine_pool.go(
+            self._middlewareManager.process_spider_start(self._spider))
         # 设定工作协程的数量
         self._unfinished_workers = self._settings.getint("WORKER_NUM")
 
@@ -81,11 +85,13 @@ class Engine:
         try:
             if self._spider.start_requests is not None:
                 for url in self._spider.start_requests:
-                    request = Request(url=url, headers=self._settings.getdict("HEADERS"), callback=self._spider.parse)
+                    request = Request(url=url, headers=self._settings.getdict(
+                        "HEADERS"), callback=self._spider.parse)
                     self._scheduler.enqueue_request(request)
             else:
-                async for request in self._spider.start_request():
-                    self._scheduler.enqueue_request(request)
+                # async for request in self._spider.start_request():
+                #     self._scheduler.enqueue_request(request)
+                await detailCallable(self._spider.start_request, self._scheduler.enqueue_request)
         except Exception as e:
             logger.info(f'填充start request 过程中发生错误: \n{traceback.format_exc()}')
         self._init.set()
@@ -112,7 +118,8 @@ class Engine:
                     try:
                         await self._doCrawl(request)
                     except Exception as e:
-                        logger.error(f'find one error: \n{traceback.format_exc()}')
+                        logger.error(
+                            f'find one error: \n{traceback.format_exc()}')
                     # 处理完一个request，打一个标记
                     self._slot.toDone()
                 else:
@@ -152,7 +159,8 @@ class Engine:
                 )
                 unit_speed, unit_count = self._response_counter.dot()
                 if unit_speed or unit_count:
-                    logger.info(f'目前获取response的速度：{unit_speed}/s   每{self._item_counter.unit}s获取{unit_count}个response')
+                    logger.info(
+                        f'目前获取response的速度：{unit_speed}/s   每{self._item_counter.unit}s获取{unit_count}个response')
                 self._success_request_count += 1
         # 3.调用下载中间件处理response
         result = await self._middlewareManager.process_response(response, self._spider)
@@ -203,7 +211,8 @@ class Engine:
                         # 5. 调用管道处理item
                         unit_speed, unit_count = self._item_counter.dot()
                         if unit_count or unit_speed:
-                            logger.info(f'目前获取item的速度：{unit_speed}/s   每{self._item_counter.unit}s获取{unit_count}个item')
+                            logger.info(
+                                f'目前获取item的速度：{unit_speed}/s   每{self._item_counter.unit}s获取{unit_count}个item')
                         await self._middlewareManager.pipeline_process_item(item=callback_result, spider=self._spider)
             elif isinstance(callback_result, Coroutine):
                 await self._handle_coroutine_callback(callback_result)

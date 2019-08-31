@@ -27,13 +27,16 @@ DefaultMaxCoroutineIdleTime = 10
 StopSingal = -1
 
 
-class NotTooMangStartCorroutineException(Exception): pass
+class NotTooMangStartCorroutineException(Exception):
+    pass
 
 
-class NotStartCoroutineException(Exception): pass
+class NotStartCoroutineException(Exception):
+    pass
 
 
-class NotManyCoroutineException(Exception): pass
+class NotManyCoroutineException(Exception):
+    pass
 
 
 class CoroutineTask:
@@ -126,7 +129,7 @@ class PyCoroutinePool:
         asyncio.run_coroutine_threadsafe(self._stop_on_wait(), self._loop)
 
     async def _stop(self):
-        async  with self._lock:
+        async with self._lock:
             # 对于已经完成任务的协程，进行退出
             for taskQueue in self._ready:
                 await taskQueue.addTask(None)
@@ -158,7 +161,8 @@ class PyCoroutinePool:
         asyncio.run_coroutine_threadsafe(self._daemon(), self._loop)  # 开启协程
 
     def _init(self):
-        run_loop_thread = Thread(target=self._start_subthread_loop, args=(self._loop,))  # 在子线程运行事件循环
+        run_loop_thread = Thread(
+            target=self._start_subthread_loop, args=(self._loop,))  # 在子线程运行事件循环
         run_loop_thread.start()
 
     def _start_subthread_loop(self, loop):
@@ -171,7 +175,7 @@ class PyCoroutinePool:
         scratch = []
         maxCoroutineIdleTime = self._maxCoroutineIdleTime
         currentTime = time.time()
-        async  with self._lock:
+        async with self._lock:
             n = len(self._ready)
             i = 0
             while i < n:
@@ -202,7 +206,8 @@ class PyCoroutinePool:
     # 添加任务执行
     def go(self, task: Coroutine) -> bool:
         try:
-            asyncio.run_coroutine_threadsafe(self._goCoroutine(task), self._loop)
+            asyncio.run_coroutine_threadsafe(
+                self._goCoroutine(task), self._loop)
             return True
         except NotManyCoroutineException as e:
             print(e)
@@ -239,7 +244,8 @@ class PyCoroutinePool:
             taskQueue = TaskQueue()
             # await self._executeTask(newTaskQueue) # 在协程中执行任务
             # 新开启一个协程并让这个协程进入准备阶段
-            asyncio.run_coroutine_threadsafe(self._executeTask(taskQueue), self._loop)
+            asyncio.run_coroutine_threadsafe(
+                self._executeTask(taskQueue), self._loop)
         return taskQueue
 
     async def _executeTask(self, taskQueue):
@@ -299,10 +305,8 @@ if __name__ == '__main__':
         print(a[9])
         print(f'{task_id} 任务结束')
 
-
     async def stop_corountine(coroutine_pool: PyCoroutinePool):
         coroutine_pool.stop()
-
 
     coroutine_pool = PyCoroutinePool()
     coroutine_pool.start()
