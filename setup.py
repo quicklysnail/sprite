@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(
     name="sprite",
@@ -9,7 +9,7 @@ setup(
     author_email="819078740@qq.com",
     python_requires=">=3.6",
     install_requires=["httptools", "bitarray", "w3lib", "typing"],
-    packages=["sprite"],
+    packages=find_packages(),
     license="MIT",
     classifiers=[
         "Framework :: AsyncIO",

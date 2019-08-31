@@ -96,7 +96,7 @@ class MiddlewareManager:
         fname = lambda f: f'{f.__name__}'
         result = None
         for method in self._getMiddleWareByPostion(middleware_name=DOWNLOAD_MIDDLEWARE, postion=AFTER):
-            result =await method(request=response.request, response=response, spider=spider)
+            result =await method(response=response, spider=spider)
             assert result is None or isinstance(result, (Request, Response)), f'this middleware {fname(method)} must return None or Resquest or Response, but got {type(result)}'
             if result:
                 return result

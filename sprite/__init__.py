@@ -2,10 +2,14 @@
 __author__ = 'liyong'
 __date__ = '2019/8/16 19:43'
 
-from sprite.http.request import Request
-from sprite.http.response import Response
-from sprite.item import Item
-from sprite.settings import Settings
-from sprite.spider import Spider
-from sprite.crawl import Crawler
-from sprite.core.download import Downloader
+from .http.request import Request
+from .http.response import Response
+from .item import Item
+from .settings import Settings
+from .spider import Spider
+from .crawl import Crawler
+from .core.download import Downloader
+from .item import Field
+
+
+__version__ = "0.1.0"
