@@ -23,7 +23,8 @@ def parse(response):
 if __name__ == '__main__':
     url = "https://www.bilibili.com/index/recommend.json"
     request = Request(url=url, headers=headers, callback=parse,
-                      meta={"proxy": "http://127.0.0.1:8802"})
+                      meta={"proxy": "http://106.42.211.175:30007"}
+                      )
     coroutine_pool = PyCoroutinePool()
     downloader = Downloader(
         coroutine_pool=coroutine_pool, loop=coroutine_pool.loop)

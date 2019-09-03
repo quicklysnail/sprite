@@ -13,17 +13,10 @@ class Headers(CaselessDict):
         super(Headers, self).__init__(seq)
 
     def normkey(self, key):
-        return self._tobytes(key.title())
+        return key
 
     def normvalue(self, value):
-        if value is None:
-            value = []
-        elif isinstance(value, (str, bytes)):
-            value = [value]
-        elif not hasattr(value, '__iter__'):
-            value = [value]
-
-        return [self._tobytes(x) for x in value]
+        return value
 
     def _tobytes(self, x):
         if isinstance(x, bytes):

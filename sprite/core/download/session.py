@@ -218,7 +218,6 @@ class Session:
         request_headers = self._headers.copy()
         if cookies is not None:
             cookies = CookiesJar(cookies)
-
         if headers:
             # 用自定义的headers更新默认的headers
             request_headers.update(headers)

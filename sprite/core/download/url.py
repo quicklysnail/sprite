@@ -16,8 +16,8 @@ class URL:
         self.query = query.decode('utf-8')
         self.fragment = fragment.decode('utf-8')
         self.userinfo = userinfo.decode('utf-8')
-        self.netloc = self.schema + '://' + self.host + ":" + str(self.port)
 
+        self.netloc = self._setNetloc()
     def __repr__(self):
         return ('<URL schema: {!r}, host: {!r}, port: {!r}, path: {!r}, '
                 'query: {!r}, fragment: {!r}, userinfo: {!r}>'
@@ -31,6 +31,20 @@ class URL:
             if self.query:
                 _raw += '?' + self.query
         return _raw
+
+    def _isIp(self, host:str):
+        try:
+            int(port)
+            return True
+        except:
+            return False
+
+    def _setNetloc(self):
+        if self._isIp(self.host):
+            return self.schema + '://' + self.host + ":" + str(self.port) + self.path + "?" + self.query
+        else:
+            return self.schema + '://' + self.host  + self.path + "?" + self.query
+
 
 
 def parse_url(url: bytes) -> URL:

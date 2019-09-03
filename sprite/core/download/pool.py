@@ -45,7 +45,7 @@ class ConnectionPool:
                 'loop': self.loop,
             }
         # 配置https的ssl
-        if self.protocol == 'https':
+        if self.proxy is None and self.protocol == 'https':
             if ssl is False:
                 args['ssl'] = INSECURE_CONTEXT
             elif ssl is None:

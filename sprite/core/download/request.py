@@ -15,8 +15,6 @@ class Request:
         self.method = method.upper() if method else 'GET'
         self.url = url
         self.headers = headers or {}
-        if 'Host' not in headers:
-            self.headers.update({'Host': url.host})
         self.data = data or b''
         self.cookies = cookies
         self.streaming = True if data and not isinstance(data, (bytes, bytearray)) else False
@@ -25,9 +23,8 @@ class Request:
 
     async def encode(self, connection: Connection):
         # 把请求编码成字节类型，并调用connection实例发送请求
-
+        http_request = f'{self.method} {self.url.netloc} HTTP/1.1\r\n'
         # Headers
-        http_request = f'{self.method} {self.url.path} HTTP/1.1\r\n'
         for header, value in self.headers.items():
             http_request += f'{header}: {str(value)}\r\n'
         if self.cookies:

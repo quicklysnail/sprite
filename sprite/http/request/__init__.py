@@ -31,6 +31,7 @@ class Request:
         assert callback is not None, 'Request[%s]的回调函数[callback]不能为None!' % self._url
         self.cookies = cookies or {}
         self.headers = Headers(headers or {}, encoding=encoding)
+
         self.dont_filter = dont_filter
 
         self._meta = dict(meta) if meta else None
