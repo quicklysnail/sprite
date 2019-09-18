@@ -8,9 +8,9 @@ sprite is an python 3.6+ web scraping micro-framework based on asyncio coroutine
 
 ## quick start
 
+```
 pip install spriterx
-
-
+```
 
 ```
 import sprite
