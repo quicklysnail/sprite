@@ -1,9 +1,7 @@
 # sprite
-基于python协程池、用法灵活的轻量级高性能爬虫框架
 
 # overview
 sprite is an python 3.6+ web scraping micro-framework based on asyncio coroutine pool.
-
 
 
 ## quick start
@@ -14,9 +12,7 @@ pip install spriterx
 
 ```
 import sprite
-from sprite import Spider
-from sprite import Response
-from sprite import Crawler
+from sprite import Spider, Response, Crawler
 
 
 class TestSpider(sprite.Spider):
@@ -35,7 +31,7 @@ class TestSpider(sprite.Spider):
         for url in start_requests:
             yield sprite.Request(url=url, headers=headers, callback=self.parse, dont_filter=True)
 
-	async def parse(self, response: Response):
+    async def parse(self, response: Response):
         self.logger.info("执行parse")
         self.logger.info(f'response body {response.body}')    
 
@@ -111,13 +107,11 @@ import sprite
 class TestItem(sprite.Item):
     body = sprite.Field()
 ```
-# Individual use downloader module
+## Individual use downloader module
 
 ```
 import time
-from sprite import Downloader
-from sprite import Request
-from sprite import PyCoroutinePool
+from sprite import Downloader, Request, PyCoroutinePool
 from sprite.settings import Settings
 
 headers = {'Accept': 'text/html, application/xhtml+xml, image/jxr, */*',
