@@ -3,10 +3,7 @@ __author__ = 'liyong'
 __date__ = '2019-08-24 19:27'
 
 import sprite
-from sprite import Spider
-from sprite import Response
-from sprite import Settings
-from sprite import Crawler
+from sprite import Spider, Response, Settings, Crawler
 from examples.test_spider_one.middlewares import test_middleware
 from examples.test_spider_one.items import TestItem
 
@@ -42,7 +39,7 @@ class GaodeSpider(Spider):
         start_requests = ["https://apmconfig.douyucdn.cn/big/apm/front/config/report?client_sys=web",
                           "https://www.douyu.com/japi/search/api/getHotList"]
         for url in start_requests:
-            print("抛出一个请求！！！")
+            self.logger.info("抛出一个请求！！！")
             yield sprite.Request(url=url, headers=headers, callback=self.test_parse, dont_filter=True)
 
     async def test_parse(self, response: Response):
