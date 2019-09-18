@@ -20,6 +20,7 @@ from sprite.utils.log import get_logger
 from sprite.item import Item
 from sprite.utils.request import Counter
 from sprite.utils.asyncHandler import detailCallable
+from sprite.exceptions import SchedulerEmptyException
 
 logger = get_logger()
 
@@ -56,6 +57,8 @@ class Engine:
 
     def start(self):
         logger.info(f'启动engine')
+        # 启动调度器
+        self._scheduler.start()
         # 启动协程池
         self._coroutine_pool.start()
         # 注入start_requests
@@ -82,18 +85,21 @@ class Engine:
             self._coroutine_pool.go(self._doSomething())
 
     async def _get_start_requests(self):
-        try:
-            if self._spider.start_requests is not None:
-                for url in self._spider.start_requests:
-                    request = Request(url=url, headers=self._settings.getdict(
-                        "HEADERS"), callback=self._spider.parse)
-                    self._scheduler.enqueue_request(request)
-            else:
-                # async for request in self._spider.start_request():
-                #     self._scheduler.enqueue_request(request)
-                await detailCallable(self._spider.start_request, self._scheduler.enqueue_request)
-        except Exception as e:
-            logger.info(f'填充start request 过程中发生错误: \n{traceback.format_exc()}')
+        if not self._scheduler.has_pending_requests():
+            # 检测非断点续爬
+            try:
+                if self._spider.start_requests is not None:
+                    for url in self._spider.start_requests:
+                        request = Request(url=url, headers=self._settings.getdict(
+                            "HEADERS"), callback=self._spider.parse)
+                        self._scheduler.enqueue_request(request)
+                else:
+                    # async for request in self._spider.start_request():
+                    #     self._scheduler.enqueue_request(request)
+                    await detailCallable(self._spider.start_request, self._scheduler.enqueue_request)
+            except Exception as e:
+                logger.info(
+                    f'填充start request 过程中发生错误: \n{traceback.format_exc()}')
         self._init.set()
 
     # 不断检测所有的工作协程是否都结束，如果都结束的化，则启动关闭引擎的流程
@@ -109,11 +115,10 @@ class Engine:
             # 1.首先判断spider非close
             if not self._running.is_set():
                 # 2.再尝试从调度器里面提取request
-                request = self._scheduler.next_request()
-                if request:
-                    # 获取到request之后，开始处理请求
-                    await self._slot.addRequest(request)
-                    # 先将request放入正在处理队列记录一下，再取出
+                try:
+                    # 获取到request之后，开始处理请求,先将request放入正在处理队列记录一下
+                    self._slot.addRequest(self._scheduler.next_request())
+                    # 再取出
                     request = self._slot.getRequest()
                     try:
                         await self._doCrawl(request)
@@ -122,7 +127,7 @@ class Engine:
                             f'find one error: \n{traceback.format_exc()}')
                     # 处理完一个request，打一个标记
                     self._slot.toDone()
-                else:
+                except SchedulerEmptyException:
                     if self._slot.has_pending_request():
                         await asyncio.sleep(0.001)
                         continue
@@ -146,11 +151,11 @@ class Engine:
         if response is None:
             # 2.调用下载器下载request
             logger.debug(f'downloading request: {request.url} {request.query}')
-            self._downloaded_request_count += 1
             response = await self._downloader.request(request=request)
+            self._downloaded_request_count += 1
             if response.error:
                 self._failed_request_count += 1
-                logger.info(
+                logger.debug(
                     f'downloaded request failure: {request.url} {request.query}')
             else:
                 logger.debug(
@@ -238,7 +243,6 @@ class Engine:
         self._coroutine_pool.go(self._close())
 
     async def _close(self):
-        logger.info(f'开始关闭spider')
         # 关闭引擎的步骤
         # 1.首先关闭调度器
         self._scheduler.close()
@@ -262,7 +266,7 @@ class Engine:
             middlewareManager = MiddlewareManager()
         coroutine_pool = PyCoroutinePool.from_setting(settings)
         obj = cls(
-            scheduler=Scheduler.from_settings(settings),
+            scheduler=Scheduler.from_settings(settings, spider),
             downloader=Downloader.from_settings(settings, coroutine_pool),
             coroutine_pool=coroutine_pool,
             spider=spider,

@@ -23,9 +23,7 @@ class GaodeSpider(Spider):
             'User-Agent': "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36",
             'X-Requested-With': 'XMLHttpRequest',
         }
-        start_requests = ["https://www.bilibili.com/index/recommend.json",
-                          "https://apmconfig.douyucdn.cn/big/apm/front/config/report?client_sys=web",
-                          "https://www.douyu.com/japi/search/api/getHotList"]
+        start_requests = ["https://www.bilibili.com/index/recommend.json"]
         for url in start_requests:
             yield sprite.Request(url=url, headers=headers, callback=self.parse, dont_filter=True)
 
@@ -41,8 +39,7 @@ class GaodeSpider(Spider):
             'User-Agent': "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36",
             'X-Requested-With': 'XMLHttpRequest',
         }
-        start_requests = ["https://www.bilibili.com/index/recommend.json",
-                          "https://apmconfig.douyucdn.cn/big/apm/front/config/report?client_sys=web",
+        start_requests = ["https://apmconfig.douyucdn.cn/big/apm/front/config/report?client_sys=web",
                           "https://www.douyu.com/japi/search/api/getHotList"]
         for url in start_requests:
             print("抛出一个请求！！！")
@@ -60,10 +57,12 @@ if __name__ == '__main__':
     spider = GaodeSpider()
     # 实例化一个自定义的settings对象
     settings = Settings(values={
-        "MAX_DOWNLOAD_NUM": 100,
-        "WORKER_NUM": 100,
-        "DELAY": 0,
+        "MAX_DOWNLOAD_NUM":1 ,
+        "WORKER_NUM": 1,
+        "DELAY": 20,
         "LOG_FILE_PATH": "test_spider_one.log",
+        "JOB_DIR": "/home/username/sprite/examples/test_spider_one/spiders",
+        "LONG_SAVE":True,
     })
     # 构造一个crawler对象
     crawler = Crawler(

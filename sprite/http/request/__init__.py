@@ -2,13 +2,13 @@
 __author__ = 'liyong'
 __date__ = '2019/8/16 19:50'
 
-from typing import Callable
+from typing import Callable, Dict
 from sprite.http.headers import Headers
 
 
 class Request:
     __slots__ = (
-        '_encoding', '_query', 'method', '_formdata', 'priority', 'callback', 'cookies', 'headers', 'dont_filter',
+        '_encoding', '_query', 'method', '_formdata', 'priority', 'callback', 'cookies', '_headers', 'dont_filter',
         '_meta',
         '_url'
     )
@@ -30,7 +30,7 @@ class Request:
         self.callback = callback
         assert callback is not None, 'Request[%s]的回调函数[callback]不能为None!' % self._url
         self.cookies = cookies or {}
-        self.headers = Headers(headers or {}, encoding=encoding)
+        self._headers = Headers(headers or {}, encoding=encoding)
 
         self.dont_filter = dont_filter
 
@@ -47,6 +47,15 @@ class Request:
         if self._formdata is None:
             self._formdata = {}
         return self._formdata
+
+    @property
+    def headers(self):
+        return self._headers
+
+    @headers.setter
+    def headers(self, headers:Dict):
+        self._headers = Headers(headers, encoding=self._encoding)
+
 
     @property
     def meta(self):

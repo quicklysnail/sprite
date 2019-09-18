@@ -11,18 +11,6 @@ def get_logger(name: str = "sprite"):
     return logging.getLogger(name)
 
 
-# def set_logger(settings:Settings):
-#     logger = get_logger()
-#     file_path = settings.get("LOG_FILE_PATH", "")
-#     project_name = settings.get("PROJECT_NAME")
-#     if file_path:
-#         logger.add(file_path, rotation="500 MB", format="{name} {time} {level} {message}", filter="my_module",
-#                level="INFO", )
-#     else:
-#         logger.add(sys.stderr, format="{name} {time} {level} {message}",
-#                    filter="my_module",
-#                    level="INFO")
-
 
 def set_logger(settings: Settings):
     file_path = settings.get("LOG_FILE_PATH", "")

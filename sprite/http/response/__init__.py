@@ -49,6 +49,10 @@ class Response:
     def cookies(self):
         return self._cookiesJar
 
+    @property
+    def callback(self):
+        return self.request.callback
+
     def __str__(self):
         return "<%d %s>" % (self.status, self.url)
 

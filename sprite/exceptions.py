@@ -15,15 +15,16 @@ class StreamAlreadyConsumed(HTTPClientError): pass
 class TypeNotSupport(Exception): pass
 
 
-class TooManyRedirects(HTTPClientError):
-    pass
+class TooManyRedirects(HTTPClientError):pass
 
 
-class MissingSchema(HTTPClientError):
-    pass
+class MissingSchema(HTTPClientError):pass
 
 
 class NotStartRequest(Exception): pass
 
 
 class DownloadException(Exception): pass
+
+
+class SchedulerEmptyException(Exception): pass

@@ -77,15 +77,8 @@ class PriorityQueue:
 
 
 class Queue:
-    """A queue, useful for coordinating producer and consumer coroutines.
-
-    If maxsize is less than or equal to zero, the queue size is infinite. If it
-    is an integer greater than 0, then "yield from put()" will block when the
-    queue reaches maxsize, until an item is removed by get().
-
-    Unlike the standard library Queue, you can reliably know this Queue's size
-    with qsize(), since your single-threaded asyncio application won't be
-    interrupted between calling qsize() and doing an operation on the Queue.
+    """
+    对标准库中的协程队列的细微改造
     """
 
     def __init__(self, maxsize=0, *, loop=None):
@@ -104,7 +97,6 @@ class Queue:
         self._finished.set()
         self._init(maxsize)
 
-    # These three are overridable in subclasses.
 
     def _init(self, maxsize):
         self._queue = collections.deque()
@@ -115,10 +107,8 @@ class Queue:
     def _put(self, item):
         self._queue.append(item)
 
-    # End of the overridable methods.
 
     def _wakeup_next(self, waiters):
-        # Wake up the next waiter (if any) that isn't cancelled.
         while waiters:
             waiter = waiters.popleft()
             if not waiter.done():
@@ -145,12 +135,10 @@ class Queue:
         return result
 
     def qsize(self):
-        """Number of items in the queue."""
         return len(self._queue)
 
     @property
     def maxsize(self):
-        """Number of items allowed in the queue."""
         return self._maxsize
 
     def empty(self):
@@ -159,11 +147,6 @@ class Queue:
         return True
 
     def full(self):
-        """Return True if there are maxsize items in the queue.
-
-        Note: if the Queue was initialized with maxsize=0 (the default),
-        then full() is never True.
-        """
         if self._maxsize <= 0:
             return False
         else:
@@ -171,13 +154,6 @@ class Queue:
 
     @coroutine
     def put(self, item):
-        """Put an item into the queue.
-
-        Put an item into the queue. If the queue is full, wait until a free
-        slot is available before adding item.
-
-        This method is a coroutine.
-        """
         while self.full():
             putter = self._loop.create_future()
             self._putters.append(putter)
@@ -193,10 +169,6 @@ class Queue:
         return self.put_nowait(item)
 
     def put_nowait(self, item):
-        """Put an item into the queue without blocking.
-
-        If no free slot is immediately available, raise QueueFull.
-        """
         if self.full():
             raise QueueFull
         self._put(item)
@@ -206,12 +178,6 @@ class Queue:
 
     @coroutine
     def get(self):
-        """Remove and return an item from the queue.
-
-        If queue is empty, wait until an item is available.
-
-        This method is a coroutine.
-        """
         while self.empty():
             getter = self._loop.create_future()
             self._getters.append(getter)
@@ -233,10 +199,6 @@ class Queue:
         return self.get_nowait()
 
     def get_nowait(self):
-        """Remove and return an item from the queue.
-
-        Return an item if one is immediately available, else raise QueueEmpty.
-        """
         if self.empty():
             raise QueueEmpty
         item = self._get()
@@ -244,19 +206,6 @@ class Queue:
         return item
 
     def task_done(self):
-        """Indicate that a formerly enqueued task is complete.
-
-        Used by queue consumers. For each get() used to fetch a task,
-        a subsequent call to task_done() tells the queue that the processing
-        on the task is complete.
-
-        If a join() is currently blocking, it will resume when all items have
-        been processed (meaning that a task_done() call was received for every
-        item that had been put() into the queue).
-
-        Raises ValueError if called more times than there were items placed in
-        the queue.
-        """
         if self._unfinished_tasks <= 0:
             raise ValueError('task_done() called too many times')
         self._unfinished_tasks -= 1
@@ -265,31 +214,25 @@ class Queue:
 
     @coroutine
     def join(self):
-        """Block until all items in the queue have been gotten and processed.
-
-        The count of unfinished tasks goes up whenever an item is added to the
-        queue. The count goes down whenever a consumer calls task_done() to
-        indicate that the item was retrieved and all work on it is complete.
-        When the count of unfinished tasks drops to zero, join() unblocks.
-        """
         if self._unfinished_tasks > 0:
             yield from self._finished.wait()
 
 
 if __name__ == '__main__':
-    # test_queue = Queue()
-    # test_queue.put_nowait("test")
-    # print(test_queue.empty())
-    # print("========================")
-    # test_queue.get_nowait()
-    # print(test_queue.empty())
-    # print("========================")
-    # test_queue.task_done()
-    # print(test_queue.empty())
+    
 
-    test_queue = PriorityQueue()
-    test_queue.push("test", 1)
-    print(test_queue.pop())
+
+
+    test_queue = Queue()
+    test_queue.put_nowait("test")
+    print(test_queue.empty())
+    print("========================")
+    test_queue.get_nowait()
+    print(test_queue.empty())
+    print("========================")
+    test_queue.task_done()
+    print(test_queue.empty())
+
 
 
 

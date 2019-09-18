@@ -3,16 +3,14 @@ __author__ = 'liyong'
 __date__ = '2019-07-20 00:50'
 
 import asyncio
-from queue import Queue
 import traceback
-from typing import Union
-from typing import List
+from queue import Queue
+from typing import Union, List
 from asyncio import AbstractEventLoop, TimeoutError
 from .limits import RequestRate
 from .pool import ConnectionPool
 from sprite.http.request import Request
 from sprite.http.response import Response
-from .retries import RetryStrategy
 from .retries import RetryStrategy
 from sprite.utils.coroutinePool import PyCoroutinePool
 from .session import ClientDefaults, Session
@@ -65,7 +63,7 @@ class Downloader:
 
     def addResponse(self, response: Union[Response, Exception]):
         self._downloaded_response.put(response)
-        self._no_complete_task -= 1
+
 
     def _get_proxy(self, request: Request):
         return request.meta.get("proxy", None)
@@ -105,6 +103,10 @@ class Downloader:
                 logger.info(f'下载过程中发现一个错误！丢失request！\n{traceback.format_exc()}')
                 self.addResponse(error)
                 raise error
+
+            finally:
+                self._no_complete_task -= 1
+
 
     def close(self):
         self._session.close()
