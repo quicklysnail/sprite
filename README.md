@@ -10,7 +10,7 @@ sprite is an python 3.6+ web scraping micro-framework based on asyncio coroutine
 pip install spriterx
 ```
 
-```
+```python
 import sprite
 from sprite import Spider, Response, Crawler
 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
 ## define middleware
 
-```
+```python
 from sprite.middlewaremanager import MiddlewareManager
 
 test_middleware = MiddlewareManager()
@@ -87,7 +87,7 @@ async def test_downloader_middleware(spider=None):
 ```
 ## define settings
 
-```
+```python
 # 实例化一个自定义的settings对象
 from sprite import Settings
 
@@ -101,7 +101,7 @@ settings = Settings(values={
 更加详细的配置信息，请查看**sprite.settings.defaut_settings.py**
 ## define item
 
-```
+```python
 import sprite
 
 class TestItem(sprite.Item):
@@ -109,7 +109,7 @@ class TestItem(sprite.Item):
 ```
 ## Individual use downloader module
 
-```
+```python
 import time
 from sprite import Downloader, Request, PyCoroutinePool
 from sprite.settings import Settings
