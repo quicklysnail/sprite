@@ -11,13 +11,13 @@ class URL:
                  query: bytes, fragment: bytes, userinfo: bytes):
         self.schema = schema.decode('utf-8')
         self.host = host.decode('utf-8')
-        self.port = port if port else 443
+        self.port = port
         self.path = path.decode('utf-8')
         self.query = query.decode('utf-8')
         self.fragment = fragment.decode('utf-8')
         self.userinfo = userinfo.decode('utf-8')
-
         self.netloc = self._setNetloc()
+
     def __repr__(self):
         return ('<URL schema: {!r}, host: {!r}, port: {!r}, path: {!r}, '
                 'query: {!r}, fragment: {!r}, userinfo: {!r}>'
@@ -32,31 +32,17 @@ class URL:
                 _raw += '?' + self.query
         return _raw
 
-    def _isIp(self, host:str):
-        try:
-            int(port)
-            return True
-        except:
-            return False
-
     def _setNetloc(self):
-        if self._isIp(self.host):
-            return self.schema + '://' + self.host + ":" + str(self.port) + self.path + "?" + self.query
-        else:
-            return self.schema + '://' + self.host  + self.path + "?" + self.query
-
+        if self.query:
+            return self.path + "?" + self.query
+        return self.path
 
 
 def parse_url(url: bytes) -> URL:
-    """
-    ParseResultBytes(scheme=b'https', netloc=b'www.baidu.com', path=b'/page/name/age', params=b'', query=b'id=1001&token=01254514', fragment=b'')
-    b'/page/name/age'
-    None
-    """
     parse_result = parse.urlparse(url)
     return URL(schema=parse_result.scheme,
                host=parse_result.netloc.split(b':')[0],
-               port=parse_result.port or b'',
+               port=parse_result.port or 0,
                path=parse_result.path,
                query=parse_result.query,
                fragment=parse_result.fragment,

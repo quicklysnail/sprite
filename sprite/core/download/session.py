@@ -21,7 +21,6 @@ from sprite.utils.decoders import MultipartEncoder
 from sprite.http.cookies import SessionCookiesJar
 import json as json_module
 from .retries import RetryStrategy
-from .exceptions import OpenConnectionFailed
 
 URL_ENCODING = 'utf-8'
 BODY_ENCODING = 'utf-8'
@@ -104,6 +103,8 @@ class HTTPEngine:
         if self.limits:
             await self.throttle(url.raw)
         # 1.发起一个链接池链接
+        # 设置请求的域名
+        headers["Host"] = url.host
         pool = self.get_pool(url.schema, url.host, url.port, proxy=proxy)
         connection = await pool.get_connection(validate_ssl)
         # 从连接引擎对象上存储的cookies容器来拉取已经请求过对应的域名，保留下来的cookies
@@ -117,7 +118,8 @@ class HTTPEngine:
         await request.encode(connection)
 
         # 3.实例话一个response对象来管理接受响应
-        response = Response(request.url, connection, request=request, decode=decode)
+        response = Response(request.url, connection,
+                            request=request, decode=decode)
         # 4.接受headers
         await response.receive_headers()
         # 5.接受完毕headers之后，再把headers里面可能的cookie合并存储到客户端全局的cookies容器中
@@ -195,7 +197,7 @@ class Session:
         return url
 
     async def request(self, url: str = '/', stream: bool = None, follow_redirects: bool = None,
-                      max_redirects: int = 30, decode: bool = None, ssl=None, timeout:int=None,
+                      max_redirects: int = 30, decode: bool = None, ssl=None, timeout: int = None,
                       retries: Union[RetryStrategy, int] = None, cookies: dict = None,
                       headers: dict = None, method: str = 'GET', query: dict = None,
                       json: dict = None, ignore_prefix: bool = False, body=None,
@@ -203,7 +205,8 @@ class Session:
 
         # Asserting the user is not using conflicting params.
         if sum([body is not None, json is not None, form is not None]) > 1:
-            raise ValueError('You cannot set body, json or form together. You must pick one and only one.')
+            raise ValueError(
+                'You cannot set body, json or form together. You must pick one and only one.')
 
         # Handling default parameters.
         stream = stream if stream is not None else self.stream
@@ -274,7 +277,7 @@ class Session:
 
     # session的入口方法， 这个方法在超时或者连接失败或者多次尝试失败的情况下，会抛出异常的error（ConnectionError, TimeoutError）
     async def get(self, url: str = '', stream: bool = None, follow_redirects: bool = None, max_redirects: int = 30,
-                  decode: bool = None, ssl=None, timeout:int=None,
+                  decode: bool = None, ssl=None, timeout: int = None,
                   retries: RetryStrategy = None, headers: dict = None, cookies: dict = None,
                   query: dict = None, ignore_prefix: bool = False, proxy: str = None) -> Response:
 

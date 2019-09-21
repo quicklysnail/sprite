@@ -17,7 +17,8 @@ class Request:
         self.headers = headers or {}
         self.data = data or b''
         self.cookies = cookies
-        self.streaming = True if data and not isinstance(data, (bytes, bytearray)) else False
+        self.streaming = True if data and not isinstance(
+            data, (bytes, bytearray)) else False
         self.chunked = self.streaming
         self.origin = origin
 
@@ -27,6 +28,7 @@ class Request:
         # Headers
         for header, value in self.headers.items():
             http_request += f'{header}: {str(value)}\r\n'
+        # Cookies
         if self.cookies:
             cookies = ';'.join([c.name + '=' + c.value for c in self.cookies])
             http_request += f'Cookie: {cookies}'
