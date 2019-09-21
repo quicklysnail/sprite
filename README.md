@@ -11,6 +11,7 @@ pip install spriterx
 ```
 
 ```python
+import sprite
 from sprite import Spider, Response, Crawler
 
 
