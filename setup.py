@@ -1,5 +1,4 @@
 import sys
-import os
 from setuptools import setup, find_packages
 
 
@@ -9,11 +8,9 @@ if PY_VER < (3, 6):
     raise RuntimeError("Sprite doesn't support Python version prior 3.6")
 
 
-
-
 setup(
     name="spriterx",
-    version="0.1.0",
+    version="0.1.1",
     author="liyong",
     description="Python 3.6+ web scraping micro-framework based on asyncio coroutine pool.",
     long_description_content_type="text/markdown",

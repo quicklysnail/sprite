@@ -54,12 +54,12 @@ if __name__ == '__main__':
     spider = GaodeSpider()
     # 实例化一个自定义的settings对象
     settings = Settings(values={
-        "MAX_DOWNLOAD_NUM":1 ,
+        "MAX_DOWNLOAD_NUM": 1,
         "WORKER_NUM": 1,
         "DELAY": 20,
         "LOG_FILE_PATH": "test_spider_one.log",
         "JOB_DIR": "/home/username/sprite/examples/test_spider_one/spiders",
-        "LONG_SAVE":True,
+        "LONG_SAVE": True,
     })
     # 构造一个crawler对象
     crawler = Crawler(
