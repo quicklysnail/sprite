@@ -11,7 +11,7 @@ class URL:
                  query: bytes, fragment: bytes, userinfo: bytes):
         self.schema = schema.decode('utf-8')
         self.host = host.decode('utf-8')
-        self.port = port
+        self.port = port or 443 if self.schema == "https" else 80
         self.path = path.decode('utf-8')
         self.query = query.decode('utf-8')
         self.fragment = fragment.decode('utf-8')
@@ -42,7 +42,7 @@ def parse_url(url: bytes) -> URL:
     parse_result = parse.urlparse(url)
     return URL(schema=parse_result.scheme,
                host=parse_result.netloc.split(b':')[0],
-               port=parse_result.port or 0,
+               port=parse_result.port,
                path=parse_result.path,
                query=parse_result.query,
                fragment=parse_result.fragment,

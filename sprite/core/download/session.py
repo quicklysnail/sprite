@@ -48,11 +48,6 @@ class HTTPEngine:
 
     def get_pool(self, protocol: str, host: str, port: str, proxy: str = None) -> ConnectionPool:
         key = (protocol, host, port)
-        if port in (0, None):
-            if protocol == "https":
-                port = 443
-            else:
-                port = 80
         try:
             # 尝试从字典中获取指定域名的链接池
             return self.pools[key]

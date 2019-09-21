@@ -118,15 +118,6 @@ class Engine:
                 try:
                     # 获取到request之后，开始处理请求,先将request放入正在处理队列记录一下
                     self._slot.addRequest(self._scheduler.next_request())
-                    # 再取出
-                    request = self._slot.getRequest()
-                    try:
-                        await self._doCrawl(request)
-                    except Exception as e:
-                        logger.error(
-                            f'find one error: \n{traceback.format_exc()}')
-                    # 处理完一个request，打一个标记
-                    self._slot.toDone()
                 except SchedulerEmptyException:
                     if self._slot.has_pending_request():
                         await asyncio.sleep(0.001)
@@ -134,6 +125,16 @@ class Engine:
                     else:
                         self._unfinished_workers -= 1
                         break
+                # 再取出
+                request = self._slot.getRequest()
+                try:
+                    await self._doCrawl(request)
+                except Exception:
+                    logger.error(
+                        f'find one error: \n{traceback.format_exc()}')
+                # 处理完一个request，打一个标记
+                self._slot.toDone()
+                self._downloaded_request_count += 1
             else:
                 self._unfinished_workers -= 1
                 break
@@ -152,9 +153,7 @@ class Engine:
             # 2.调用下载器下载request
             logger.debug(f'downloading request: {request.url} {request.query}')
             response = await self._downloader.request(request=request)
-            self._downloaded_request_count += 1
             if response.error:
-                self._failed_request_count += 1
                 logger.debug(
                     f'downloaded request failure: {request.url} {request.query}')
             else:
@@ -251,7 +250,7 @@ class Engine:
         logger.info("正在处理的request处理完毕！")
         logger.info(f'一共耗时：{time.time() - self._start_time}s')
         logger.info(
-            f'下载情况统计： 一共发送请求：{self._downloaded_request_count}    成功请求数量：{self._success_request_count}    失败请求数量：{self._failed_request_count}')
+            f'下载情况统计： 一共发送请求：{self._downloaded_request_count}    成功请求数量：{self._success_request_count}    失败请求数量：{self._downloaded_request_count - self._success_request_count}')
         # 3.关闭所有的tcp连接
         self._downloader.close()
         # 4.然后关闭协程池
