@@ -45,7 +45,18 @@ class ConnectionPool:
                 'loop': self.loop,
             }
         # 配置https的ssl
-        if self.proxy is None and self.protocol == 'https':
+        # For HTTPS requests over HTTP proxy
+            # we must notify proxy to tunnel connection
+            # so we send CONNECT command:
+            #   CONNECT www.python.org:443 HTTP/1.1
+            #   Host: www.python.org
+            #
+            # next we must do TLS handshake and so on
+            # to do this we must wrap raw socket into secure one
+            # asyncio handles this perfectly
+            # CONNECT path = '{}:{}'.format(self.url.raw_host, self.url.port)
+            # status_line = '{0} {1} HTTP/{2[0]}.{2[1]}'.format(self.method, path, self.version)
+        if self.protocol == 'https':
             if ssl is False:
                 args['ssl'] = INSECURE_CONTEXT
             elif ssl is None:

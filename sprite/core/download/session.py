@@ -46,7 +46,7 @@ class HTTPEngine:
         self.pools = {}  # 多个connection_pool链接管理，每一个connection_pool对应一个地址和端口下的多个链接
         self.limits = limits or []
 
-    def get_pool(self, protocol: str, host: str, port: str, proxy: str = None) -> ConnectionPool:
+    def get_pool(self, protocol: str, host: str, port: int, proxy: str = None) -> ConnectionPool:
         key = (protocol, host, port)
         try:
             # 尝试从字典中获取指定域名的链接池
@@ -107,8 +107,12 @@ class HTTPEngine:
         # 2. 实例话一个request对象，来封装这一次请求
         if cookies is None:
             cookies = self.session.cookies.get(domain=url.host)
-        request = Request(method, url, headers, data, cookies=cookies,
-                          origin=origin, )
+        if proxy is None:
+            request = Request(method, url, headers, data,
+                              cookies=cookies, origin=origin)
+        else:
+            request = Request(method, url, headers, data,
+                              cookies=cookies, origin=origin, isProxyReq=True)
         # 编码请求信息，并发起请求
         await request.encode(connection)
 

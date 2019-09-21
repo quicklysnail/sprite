@@ -6,6 +6,8 @@ from urllib import parse
 
 
 class URL:
+    __slots__ = ("schema", "host", "port", "path", "query",
+                 "fragment", "userinfo", "netloc",)
 
     def __init__(self, schema: bytes, host: bytes, port, path: bytes,
                  query: bytes, fragment: bytes, userinfo: bytes):
