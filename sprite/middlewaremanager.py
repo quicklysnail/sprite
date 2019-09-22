@@ -22,20 +22,20 @@ class MiddlewareManager:
     def __init__(self):
         self._middlewares = {
 
-        DOWNLOAD_MIDDLEWARE: {
-            BEFORE: [],
-            AFTER: [],
-        },
+            DOWNLOAD_MIDDLEWARE: {
+                BEFORE: [],
+                AFTER: [],
+            },
 
-        PIPELINE_MIDDLEWARE: [],
+            PIPELINE_MIDDLEWARE: [],
 
-        SPIDER_MIDDLEWARE: {
-            BEFORE: [],
-            AFTER: [],
-        },
-    }
+            SPIDER_MIDDLEWARE: {
+                BEFORE: [],
+                AFTER: [],
+            },
+        }
 
-    def _type_check(self, func:Callable):
+    def _type_check(self, func: Callable):
         if not isinstance(func, Awaitable):
             raise TypeNotSupport("中间件类型必须是协程！")
 
@@ -75,49 +75,47 @@ class MiddlewareManager:
 
         return wrappFunc
 
-    def _getMiddleWareByPostion(self, middleware_name: str, postion: str=None) -> List:
+    def _getMiddleWareByPostion(self, middleware_name: str, postion: str = None) -> List:
         if postion:
             return self._middlewares[middleware_name][postion]
         return self._middlewares[middleware_name]
 
-
-    async def process_request(self,request:Request, spider:Spider):
-        fname = lambda f: f'{f.__name__}'
+    async def process_request(self, request: Request, spider: Spider):
+        def fname(f): return f'{f.__name__}'
         result = None
-        for method in self._getMiddleWareByPostion(middleware_name=DOWNLOAD_MIDDLEWARE,postion=BEFORE):
-            result =await method(request=request, spider=spider)
-            assert result is None or isinstance(result, (Request, Response)), f'this middleware {fname(method)} must return None or Resquest or Response, but got {type(result)}'
+        for method in self._getMiddleWareByPostion(middleware_name=DOWNLOAD_MIDDLEWARE, postion=BEFORE):
+            result = await method(request=request, spider=spider)
+            assert result is None or isinstance(
+                result, (Request, Response)), f'this middleware {fname(method)} must return None or Resquest or Response, but got {type(result)}'
             # 有返回值表示 下面的中间件不再执行
             if result:
                 return result
         return result
 
-    async def process_response(self, response:Response , spider:Spider):
-        fname = lambda f: f'{f.__name__}'
+    async def process_response(self, response: Response, spider: Spider):
+        def fname(f): return f'{f.__name__}'
         result = None
         for method in self._getMiddleWareByPostion(middleware_name=DOWNLOAD_MIDDLEWARE, postion=AFTER):
-            result =await method(response=response, spider=spider)
-            assert result is None or isinstance(result, (Request, Response)), f'this middleware {fname(method)} must return None or Resquest or Response, but got {type(result)}'
+            result = await method(response=response, spider=spider)
+            assert result is None or isinstance(
+                result, (Request, Response)), f'this middleware {fname(method)} must return None or Resquest or Response, but got {type(result)}'
             if result:
                 return result
         return result
 
-
-    async def pipeline_process_item(self, item:Item, spider:Spider):
-        fname = lambda f:f'{f.__name__}'
+    async def pipeline_process_item(self, item: Item, spider: Spider):
+        def fname(f): return f'{f.__name__}'
         for method in self._getMiddleWareByPostion(middleware_name=PIPELINE_MIDDLEWARE):
-            result =await method(spider=spider, item=item)
-            assert result is None or isinstance(result, Item), f'this middleware {fname(method)} must return None or Item, but got {type(result)}'
+            result = await method(spider=spider, item=item)
+            assert result is None or isinstance(
+                result, Item), f'this middleware {fname(method)} must return None or Item, but got {type(result)}'
             if result is None:
                 return
 
-    async def process_spider_start(self, spider:Spider):
+    async def process_spider_start(self, spider: Spider):
         for method in self._getMiddleWareByPostion(middleware_name=SPIDER_MIDDLEWARE, postion=BEFORE):
             await method(spider=spider)
 
-
-    async def process_spider_close(self, spider:Spider):
+    async def process_spider_close(self, spider: Spider):
         for method in self._getMiddleWareByPostion(middleware_name=SPIDER_MIDDLEWARE, postion=AFTER):
             await method(spider=spider)
-
-

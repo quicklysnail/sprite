@@ -71,10 +71,6 @@ class Engine:
                 "scheduler 为空，没有构造start request或者填充start request失败, 关闭程序")
             self.close()
             return
-
-        # 执行爬虫中间件
-        self._coroutine_pool.go(
-            self._middlewareManager.process_spider_start(self._spider))
         # 设定工作协程的数量
         self._unfinished_workers = self._settings.getint("WORKER_NUM")
 
@@ -85,6 +81,8 @@ class Engine:
             self._coroutine_pool.go(self._doSomething())
 
     async def _get_start_requests(self):
+        # 执行爬虫中间件
+        await self._middlewareManager.process_spider_start(self._spider)
         if not self._scheduler.has_pending_requests():
             # 检测非断点续爬
             try:
