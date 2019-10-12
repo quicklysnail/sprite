@@ -15,7 +15,6 @@ from sprite.utils.request import request_to_dict, request_from_dict
 from sprite.settings import Settings
 from sprite.exceptions import SchedulerEmptyException, TypeNotSupport, SchedulerEmptyException
 
-
 logger = get_logger()
 
 
@@ -43,20 +42,20 @@ class Slot:
 
 # 调度器
 class Scheduler:
-    def __init__(self, spider:"Spider", df=None, queue=None, long_save: bool = False, job_dir: str = None):
-        self._spider=spider
+    def __init__(self, spider: "Spider", df=None, queue=None, long_save: bool = False, job_dir: str = None):
+        self._spider = spider
         self._priorityQueue = queue or PriorityQueue()
         self._df = df or ScalableBloomFilter()
         self._long_save = long_save
         self._job_dir = job_dir
 
     @classmethod
-    def from_settings(cls, settings: Settings, spider:"Spider"):
+    def from_settings(cls, settings: Settings, spider: "Spider"):
         initial_capacity = settings.getint("INITIAL_CAPACITY")
         error_rate = settings.getfloat("ERROR_RATE")
         long_save = settings.getbool("LONG_SAVE")
         job_dir = settings.get("JOB_DIR")
-        obj = cls(spider=spider, df=ScalableBloomFilter(initial_capacity=initial_capacity),
+        obj = cls(spider=spider, df=ScalableBloomFilter(initial_capacity=initial_capacity, error_rate=error_rate),
                   queue=PriorityQueue(), long_save=long_save, job_dir=job_dir)
         return obj
 
@@ -99,7 +98,8 @@ class Scheduler:
                 f'start scheduler, find one error: \n{traceback.format_exc()}')
 
     def _save_requests(self):
-        if self._long_save and self._job_dir is not None and os.path.exists(self._job_dir) and self.has_pending_requests():
+        if self._long_save and self._job_dir is not None and os.path.exists(
+                self._job_dir) and self.has_pending_requests():
             logger.info(f'save request')
             requests = []
             while True:
@@ -132,4 +132,3 @@ class Scheduler:
                             f'find one error: \n{traceback.format_exc()}')
                 # 删除requests缓存
                 os.remove(requests_file_path)
-
