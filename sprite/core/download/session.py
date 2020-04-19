@@ -147,13 +147,13 @@ class Session:
                  'stream', 'decode', 'ssl', 'prefix', 'keep_alive', 'retries_policy',
                  'timeout', 'cookies', 'limits')
 
-    def __init__(self, loop: AbstractEventLoop = None, downloader: 'Downloader' = None, headers: dict = None,
+    def __init__(self, loop: AbstractEventLoop, downloader: 'Downloader' = None, headers: dict = None,
                  follow_redirects: bool = False, max_redirects: int = 30,
                  stream: bool = False, decode: bin = True, ssl=None, keep_alive: bool = True,
                  prefix: str = '', timeout: Union[int, float] = ClientDefaults.TIMEOUT,
                  retries: RetryStrategy = None, limits: List[RequestRate] = None):
         self._downloader = downloader
-        self._loop = loop or asyncio.get_event_loop()
+        self._loop = loop
         # 全局的connection链接管理
         self._engine = HTTPEngine(self, self._loop, limits=limits)
         # 全局的headers

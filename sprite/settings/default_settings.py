@@ -5,6 +5,8 @@ __date__ = '2019-07-19 23:28'
 # 项目名称
 PROJECT_NAME = "spirit"
 
+ENV = "dev"
+
 SERVER_IP = "localhost"
 
 SERVER_PORT = 8088

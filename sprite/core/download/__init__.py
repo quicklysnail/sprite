@@ -26,26 +26,23 @@ class Downloader:
         '_session', '_loop', '_coroutine_pool', '_downloaded_response', '_downloaded_request', '_crawler', '_settings',
         '_sem', '_delay', '_no_complete_task')
 
-    def __init__(self, loop: AbstractEventLoop, max_download_num: int = 5, coroutine_pool: PyCoroutinePool = None,
+    def __init__(self, max_download_num: int = 5, coroutine_pool: PyCoroutinePool = None,
                  headers: dict = None,
                  follow_redirects: bool = False, max_redirects: int = 30, delay: int = 1,
                  stream: bool = False, decode: bin = True, ssl=None, keep_alive: bool = True,
                  prefix: str = '', timeout: Union[int, float] = ClientDefaults.TIMEOUT,
                  retries: RetryStrategy = None, limits: List[RequestRate] = None):
-        self._loop = loop
         self._sem = asyncio.Semaphore(max_download_num)
         self._delay = delay
         self._no_complete_task = 0
-
-        self._session = Session(loop=self._loop, headers=headers, follow_redirects=follow_redirects,
+        # 协程池
+        self._coroutine_pool = coroutine_pool
+        assert self._coroutine_pool is None, "coroutine_pool not init"
+        self._session = Session(loop=self._coroutine_pool.loop, headers=headers, follow_redirects=follow_redirects,
                                 max_redirects=max_redirects,
                                 stream=stream, decode=decode, ssl=ssl, keep_alive=keep_alive, prefix=prefix,
                                 timeout=timeout,
                                 retries=retries, limits=limits)
-        # 协程池
-        if coroutine_pool is None:
-            self._coroutine_pool = PyCoroutinePool()
-            self._coroutine_pool.start()
         # 自带的缓冲队列
         self._downloaded_response = Queue()
 
@@ -63,7 +60,6 @@ class Downloader:
 
     def addResponse(self, response: Union[Response, Exception]):
         self._downloaded_response.put(response)
-
 
     def _get_proxy(self, request: Request):
         return request.meta.get("proxy", None)
@@ -107,7 +103,6 @@ class Downloader:
             finally:
                 self._no_complete_task -= 1
 
-
     def close(self):
         self._session.close()
 
@@ -137,7 +132,7 @@ class Downloader:
         limits = settings.get("LIMITS")
         delay = settings.getint("DELAY")
 
-        obj = cls(loop=coroutine_pool.loop, max_download_num=max_download_num, coroutine_pool=coroutine_pool,
+        obj = cls(max_download_num=max_download_num, coroutine_pool=coroutine_pool,
                   headers=headers, follow_redirects=follow_redirects, max_redirects=max_redirects, delay=delay,
                   stream=stream, decode=decode, ssl=ssl, keep_alive=keep_alive, prefix=prefix,
                   timeout=timeout, limits=limits)

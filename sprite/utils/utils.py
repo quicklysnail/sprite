@@ -5,6 +5,9 @@
 
 import traceback
 import json
+import importlib
+import inspect
+import os
 from sprite.const import *
 
 
@@ -52,3 +55,42 @@ def transformation_state_to_str(state_num):
     elif state_num == 3:
         state_msg = STATE_STOPPED
     return state_msg
+
+
+def import_module(module_name: str):
+    root, module = module_name.rsplit('.', 1)
+    module_object = getattr(__import__(root, fromlist=['']), module)
+    return module_object
+
+
+class ClassLoader:
+    def __init__(self, base_class, root_dir, reload=False, allow_duplicate=False):
+        assert os.path.exists(root_dir), "root_dir not exist"
+        self.__root_dir = root_dir
+        self.__base_class = base_class
+        self.__allow_duplicate = allow_duplicate
+        self.__reload = reload
+        self.__unique_class_object_name = set()
+        self.__class_object = {}
+
+    def load_from_file(self, path):
+        module_path = path.replace(self.__root_dir, "").replace(".py", "").split("/")
+        user_module = importlib.import_module(".".join(filter(lambda item: item.strip() not in ("", "."), module_path)))
+        if self.__reload is True: importlib.reload(user_module)
+        for name, cls in inspect.getmembers(user_module):
+            # 自定义的对比函数
+            if not issubclass(cls, self.__base_class):
+                continue
+            else:
+                if name in self.__unique_class_object_name and self.__allow_duplicate is False:
+                    raise Exception("found duplicated class %s" % name)
+            self.__unique_class_object_name.add(name)
+            self.__class_object[name] = cls
+
+    @property
+    def class_object(self):
+        return self.__class_object
+
+    def clear(self):
+        self.__class_object.clear()
+        self.__unique_class_object_name.clear()
