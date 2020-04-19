@@ -3,13 +3,13 @@ __author__ = 'liyong'
 __date__ = '2019-07-21 13:49'
 
 from .url import URL
-from sprite.http.cookies import CookiesJar
+from sprite.utils.http.cookies import CookiesJar
 from .connection import Connection
 
 
 class Request:
     __slots__ = ('method', 'url', 'headers', 'data', 'cookies', 'streaming', 'chunked',
-                 'encoding', 'origin')
+                 'encoding', 'origin', '_isProxyReq')
 
     def __init__(self, method: str, url: URL, headers: dict, data, cookies: CookiesJar, origin=None, isProxyReq: bool = False):
         self.method = method.upper() if method else 'GET'
@@ -54,7 +54,6 @@ class Request:
 
         if not self.streaming:
             http_request += f'Content-Length: {str(len(self.data))}\r\n'
-            print(f'http_request : {http_request}')
             await connection.sendall((http_request + '\r\n').encode() + self.data)
 
         elif self.chunked:

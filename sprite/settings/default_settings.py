@@ -5,12 +5,15 @@ __date__ = '2019-07-19 23:28'
 # 项目名称
 PROJECT_NAME = "spirit"
 
-SERVER_IP = "127.0.0.1"
+SERVER_IP = "localhost"
 
 SERVER_PORT = 8088
 
 # 同时并发的请求数量
 WORKER_NUM = 3
+
+# engine是否在完成工作后自动退出
+ENGINE_MOST_STOP = True
 
 # 记录日志的文件的path，如果为空则，不保存日志。直接输出
 LOG_FILE_PATH = ""
@@ -60,11 +63,11 @@ JOB_DIR = ""
 
 # PyCoroutinePool
 # 协程池中最大运行的协程数量
-MAXCOROUTINEAMOUNT = 256 * 1024
+MAX_COROUTINE_AMOUNT = 256 * 1024
 # 协程的空闲时间
-MAXCOROUTINEIDLETIME = 10
+MAX_COROUTINE_IDLE_TIME = 10
 # 每一个协程运行完毕之后是否立即退出，
-MOSTSTOP = True
+MOST_STOP = True
 
 ITEM_COUNTER_UNIT = 60
 

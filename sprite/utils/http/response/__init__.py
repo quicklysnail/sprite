@@ -4,10 +4,10 @@ __date__ = '2019/8/16 19:50'
 
 from urllib.parse import urljoin
 from typing import Dict, Callable, Union
-from sprite.http.headers import Headers
+from sprite.utils.http.headers import Headers
 from sprite.exceptions import NotSupported
-from sprite.http.request import Request
-from sprite.http.cookies import CookiesJar
+from sprite.utils.http.request import Request
+from sprite.utils.http.cookies import CookiesJar
 
 
 class Response:

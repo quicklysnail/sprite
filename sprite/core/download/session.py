@@ -14,11 +14,11 @@ from .pool import ConnectionPool
 from .url import URL
 from .request import Request
 from .response import Response
-from sprite.http.cookies import CookiesJar
+from sprite.utils.http.cookies import CookiesJar
 from sprite.exceptions import TooManyRedirects, MissingSchema
 from .url import parse_url
 from sprite.utils.decoders import MultipartEncoder
-from sprite.http.cookies import SessionCookiesJar
+from sprite.utils.http.cookies import SessionCookiesJar
 import json as json_module
 from .retries import RetryStrategy
 

@@ -9,8 +9,8 @@ from typing import Union, List
 from asyncio import AbstractEventLoop, TimeoutError
 from .limits import RequestRate
 from .pool import ConnectionPool
-from sprite.http.request import Request
-from sprite.http.response import Response
+from sprite.utils.http.request import Request
+from sprite.utils.http.response import Response
 from .retries import RetryStrategy
 from sprite.utils.coroutinePool import PyCoroutinePool
 from .session import ClientDefaults, Session

@@ -5,15 +5,14 @@ __date__ = '2019/8/16 19:45'
 import os
 import pickle
 import traceback
-from typing import Union
 from sprite.utils.queues import Queue
-from sprite.http.request import Request
+from sprite.utils.http.request import Request
 from sprite.utils.queues import PriorityQueue
 from sprite.utils.log import get_logger
 from sprite.utils.pybloomfilter import ScalableBloomFilter
 from sprite.utils.request import request_to_dict, request_from_dict
 from sprite.settings import Settings
-from sprite.exceptions import SchedulerEmptyException, TypeNotSupport, SchedulerEmptyException
+from sprite.exceptions import TypeNotSupport, SchedulerEmptyException
 
 logger = get_logger()
 
@@ -126,7 +125,8 @@ class Scheduler:
                     requests = pickle.load(f)
                 for request in requests:
                     try:
-                        self.enqueue_request(request_from_dict(self._spider, request))
+                        self.enqueue_request(
+                            request_from_dict(self._spider, request))
                     except TypeNotSupport:
                         logger.info(
                             f'find one error: \n{traceback.format_exc()}')

@@ -41,4 +41,5 @@ class RingBufferWheel:
             task.run()
 
     def start(self):
+        pass
 

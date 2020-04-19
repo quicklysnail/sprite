@@ -11,7 +11,7 @@ from enum import Enum
 from .request import Request
 from .connection import Connection
 from .headers import Headers
-from sprite.http.cookies import CookiesJar, Cookie
+from sprite.utils.http.cookies import CookiesJar, Cookie
 from sprite.utils.decoders import GzipDecoder
 from sprite.exceptions import StreamAlreadyConsumed
 from .exceptions import InvalidResponseException

@@ -5,7 +5,8 @@ __date__ = '2019/8/16 19:45'
 import time
 import traceback
 import asyncio
-import threading
+from asyncio import Event
+from threading import Lock
 from typing import Callable, Coroutine
 from types import AsyncGeneratorType
 from sprite.core.scheduler import Slot, Scheduler
@@ -14,21 +15,22 @@ from sprite.utils.coroutinePool import PyCoroutinePool
 from sprite.middlewaremanager import MiddlewareManager
 from sprite.settings import Settings
 from sprite.spider import Spider
-from sprite.http.request import Request
-from sprite.http.response import Response
+from sprite.utils.http.request import Request
+from sprite.utils.http.response import Response
 from sprite.utils.log import get_logger
 from sprite.item import Item
 from sprite.utils.request import Counter
 from sprite.utils.asyncHandler import detailCallable
 from sprite.exceptions import SchedulerEmptyException
+from sprite.const import *
 
 logger = get_logger()
 
 
 class Engine:
-    def __init__(self, scheduler: Scheduler, downloader: Downloader, coroutine_pool: PyCoroutinePool,
-                 middlewareManager: MiddlewareManager,
-                 spider: Spider, settings: Settings):
+    def __init__(self, scheduler: Scheduler, downloader: Downloader, middlewareManager: MiddlewareManager,
+                 spider: Spider, settings: Settings, coroutine_pool: PyCoroutinePool = None):
+
         self._slot = Slot()
         self._scheduler = scheduler
         self._downloader = downloader
@@ -37,8 +39,11 @@ class Engine:
         self._spider = spider
         self._settings = settings
 
-        self._running = threading.Event()
-        self._init = threading.Event()
+        self._state_lock = Lock()
+        self._state = ENGINE_STATE_STOPPED
+        self._state_signal = Event()
+        self._request_added = Event()
+
         self._unfinished_workers = 0
 
         self._start_time = time.time()
@@ -50,22 +55,48 @@ class Engine:
         self._response_counter = Counter(
             unit=settings.getint("RESPONSE_COUNTER_UNIT"))
 
-    def isClose(self) -> bool:
-        if self._running.is_set():
+    @property
+    def state(self):
+        with self._state_lock:
+            return self._state
+
+    def is_running(self):
+        with self._state_lock:
+            return (self._state == ENGINE_STATE_RUNNING)
+
+    def is_stopping(self):
+        with self._state_lock:
+            return (self._state == ENGINE_STATE_STOPPING)
+
+    def is_stopped(self):
+        with self._state_lock:
+            return (self._state == ENGINE_STATE_STOPPED)
+
+    def is_to_close(self):
+        if self.is_running() and self._request_added.is_set():
             return True
         return False
 
-    def start(self):
+    def start(self) -> bool:
+        with self._state_lock:
+            if self._state != ENGINE_STATE_STOPPED:
+                return False
+        self._coroutine_pool.go(self._init())
         logger.info(f'启动engine')
+        return True
+
+    async def _init(self):
+        with self._state_lock:
+            self._state = ENGINE_STATE_RUNNING
+            self._state_signal.clear()
+            self._request_added.clear()
         # 启动调度器
         self._scheduler.start()
-        # 启动协程池
-        self._coroutine_pool.start()
         # 注入start_requests
         self._coroutine_pool.go(self._get_start_requests())
 
         # 查询调度器中是否填充了request，如果没有直接退出程序
-        self._init.wait()
+        await self._request_added.wait()
         if not self._scheduler.has_pending_requests():
             logger.error(
                 "scheduler 为空，没有构造start request或者填充start request失败, 关闭程序")
@@ -98,27 +129,30 @@ class Engine:
             except Exception as e:
                 logger.info(
                     f'填充start request 过程中发生错误: \n{traceback.format_exc()}')
-        self._init.set()
+        with self._state_lock:
+            self._request_added.set()
 
     # 不断检测所有的工作协程是否都结束，如果都结束的化，则启动关闭引擎的流程
     async def _status_check(self):
         while True:
-            if self._unfinished_workers <= 0:
+            if self._unfinished_workers <= 0 and self._settings.getbool('ENGINE_MOST_STOP'):
                 self.close()
                 break
-            await asyncio.sleep(0.001)
+            await asyncio.sleep(COROUTINE_SLEEP_TIME)
 
     async def _doSomething(self):
         while True:
             # 1.首先判断spider非close
-            if not self._running.is_set():
+            with self._state_lock:
+                state = self._state
+            if state == ENGINE_STATE_RUNNING:
                 # 2.再尝试从调度器里面提取request
                 try:
                     # 获取到request之后，开始处理请求,先将request放入正在处理队列记录一下
                     self._slot.addRequest(self._scheduler.next_request())
                 except SchedulerEmptyException:
                     if self._slot.has_pending_request():
-                        await asyncio.sleep(0.001)
+                        await asyncio.sleep(COROUTINE_SLEEP_TIME)
                         continue
                     else:
                         self._unfinished_workers -= 1
@@ -128,8 +162,7 @@ class Engine:
                 try:
                     await self._doCrawl(request)
                 except Exception:
-                    logger.error(
-                        f'find one error: \n{traceback.format_exc()}')
+                    logger.error(f'find one error: \n{traceback.format_exc()}')
                 # 处理完一个request，打一个标记
                 self._slot.toDone()
                 self._downloaded_request_count += 1
@@ -182,16 +215,10 @@ class Engine:
         callback_results = callback(response)
         if isinstance(callback_results, AsyncGeneratorType):
             # print(f'回调函数是 AsyncGeneratorType')
-            return await self._process_async_callback(callback_results=callback_results)
+            await self._process_async_callback(callback_results=callback_results)
         elif isinstance(callback_results, Coroutine):
             # print(f'回调函数是 一个Coroutine')
-            result = await self._handle_coroutine_callback(callback_results)
-            if result:
-                if isinstance(result, Request):
-                    self._scheduler.enqueue_request(result)
-                elif isinstance(result, Item):
-                    # 5. 调用管道处理item
-                    await self._middlewareManager.pipeline_process_item(item=result, spider=self._spider)
+            await self._handle_coroutine_callback(callback_results)
 
     # 处理回调（以协程的方式）
     async def _process_async_callback(self, callback_results: AsyncGeneratorType):
@@ -204,17 +231,9 @@ class Engine:
                 # yield 的返回值是Request or Item类型
                 if callback_result:
                     if isinstance(callback_result, Request):
-                        self._scheduler.enqueue_request(callback_result)
+                        await self._handle_request_result(callback_result)
                     elif isinstance(callback_result, Item):
-                        logger.debug(
-                            f'crawled one Item: {callback_result}'
-                        )
-                        # 5. 调用管道处理item
-                        unit_speed, unit_count = self._item_counter.dot()
-                        if unit_count or unit_speed:
-                            logger.info(
-                                f'目前获取item的速度：{unit_speed}/s   每{self._item_counter.unit}s获取{unit_count}个item')
-                        await self._middlewareManager.pipeline_process_item(item=callback_result, spider=self._spider)
+                        await self._handle_item_result(callback_result)
             elif isinstance(callback_result, Coroutine):
                 await self._handle_coroutine_callback(callback_result)
 
@@ -222,22 +241,37 @@ class Engine:
         result = await aws_callback
         if result:
             if isinstance(result, Request):
-                self._scheduler.enqueue_request(result)
+                await self._handle_request_result(result)
             elif isinstance(result, Item):
-                # 5. 调用管道处理item
-                await self._middlewareManager.pipeline_process_item(item=result, spider=self._spider)
+                await self._handle_item_result(result)
+
+    async def _handle_request_result(self, request: 'Request'):
+        self._scheduler.enqueue_request(request)
+
+    async def _handle_item_result(self, item: 'Item'):
+        logger.debug(
+            f'crawled one Item: {item}'
+        )
+        # 5. 调用管道处理item
+        unit_speed, unit_count = self._item_counter.dot()
+        if unit_count or unit_speed:
+            logger.info(
+                f'目前获取item的速度：{unit_speed}/s   每{self._item_counter.unit}s获取{unit_count}个item')
+        await self._middlewareManager.pipeline_process_item(item=item, spider=self._spider)
 
     def get_download_staticate(self) -> [int, int, int]:
         return self._failed_request_count, self._success_request_count, self._downloaded_request_count
 
     # 对外的接口，用于关闭引擎
-    def close(self):
-        if self._running.is_set():
-            return
-        # 1. 首先关闭发出关闭信号，
-        self._running.set()
+    def close(self) -> bool:
+        with self._state_lock:
+            if self._state != ENGINE_STATE_RUNNING or not self._request_added.is_set():
+                return False
+            # 1. 首先关发出关闭信号，
+            self._state = ENGINE_STATE_STOPPING
         # 2.在协程中执行关闭流程
         self._coroutine_pool.go(self._close())
+        return True
 
     async def _close(self):
         # 关闭引擎的步骤
@@ -251,17 +285,20 @@ class Engine:
             f'下载情况统计： 一共发送请求：{self._downloaded_request_count}    成功请求数量：{self._success_request_count}    失败请求数量：{self._downloaded_request_count - self._success_request_count}')
         # 3.关闭所有的tcp连接
         self._downloader.close()
-        # 4.然后关闭协程池
+        # 4.执行爬虫中间件
         await self._middlewareManager.process_spider_close(self._spider)
-
-        # 5.执行爬虫中间件
-        self._coroutine_pool.stop()
+        # 5.然后关闭协程池
+        with self._state_lock:
+            self._state_signal.set()
+            self._state = ENGINE_STATE_STOPPED
 
     @classmethod
-    def from_settings(cls, settings: Settings, spider: Spider, middlewareManager: MiddlewareManager):
+    def from_settings(cls, settings: Settings, spider: Spider, middlewareManager: MiddlewareManager,
+                      coroutine_pool: PyCoroutinePool = None):
         if middlewareManager is None:
             middlewareManager = MiddlewareManager()
-        coroutine_pool = PyCoroutinePool.from_setting(settings)
+        if coroutine_pool is None:
+            coroutine_pool = PyCoroutinePool.from_setting(settings)
         obj = cls(
             scheduler=Scheduler.from_settings(settings, spider),
             downloader=Downloader.from_settings(settings, coroutine_pool),

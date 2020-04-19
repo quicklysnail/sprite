@@ -94,13 +94,14 @@ class Queue:
         self._putters = collections.deque()
         self._unfinished_tasks = 0
         self._finished = locks.Event(loop=self._loop)
-        self._finished.set()
+        self._finished.set() # 设置为非阻塞状态
         self._init(maxsize)
 
-
+    # 初始化数据缓存对象
     def _init(self, maxsize):
         self._queue = collections.deque()
 
+    # 私有方法基本的操作数据缓存对象
     def _get(self):
         return self._queue.popleft()
 
@@ -154,7 +155,7 @@ class Queue:
 
     @coroutine
     def put(self, item):
-        while self.full():
+        while self.full(): # 不断的循环判断是否容量满了，满了就
             putter = self._loop.create_future()
             self._putters.append(putter)
             try:
@@ -168,6 +169,7 @@ class Queue:
                 raise
         return self.put_nowait(item)
 
+    # 不阻塞的加入数据
     def put_nowait(self, item):
         if self.full():
             raise QueueFull
@@ -219,10 +221,6 @@ class Queue:
 
 
 if __name__ == '__main__':
-    
-
-
-
     test_queue = Queue()
     test_queue.put_nowait("test")
     print(test_queue.empty())

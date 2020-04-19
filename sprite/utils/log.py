@@ -11,7 +11,6 @@ def get_logger(name: str = "sprite"):
     return logging.getLogger(name)
 
 
-
 def set_logger(settings: Settings):
     file_path = settings.get("LOG_FILE_PATH", "")
     # project_name = settings.get("PROJECT_NAME")

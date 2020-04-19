@@ -6,7 +6,7 @@ from sprite.utils.log import get_logger
 
 
 class Spider:
-    name = "sprite"
+    name: str = "sprite"
     start_requests: list = None
     metadata: dict = {}
 
@@ -16,5 +16,5 @@ class Spider:
     async def start_request(self):
         pass
 
-    async def parse(self, response: "Response"):
+    async def parse(self, response: 'Response'):
         pass

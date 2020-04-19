@@ -5,7 +5,7 @@ __date__ = '2019-08-17 22:00'
 import time
 from typing import Dict, Callable
 from collections import deque
-from sprite.http.request import Request
+from sprite.utils.http.request import Request
 from sprite.exceptions import TypeNotSupport
 
 

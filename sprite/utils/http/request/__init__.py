@@ -3,7 +3,7 @@ __author__ = 'liyong'
 __date__ = '2019/8/16 19:50'
 
 from typing import Callable, Dict
-from sprite.http.headers import Headers
+from sprite.utils.http.headers import Headers
 
 
 class Request:
