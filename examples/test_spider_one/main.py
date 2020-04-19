@@ -36,5 +36,5 @@ if __name__ == "__main__":
         "JOB_DIR": "/Users/liyong/projects/open_source/sprite/examples/test_spider_one",
         "LONG_SAVE": True,
     })
-    crawler_runner = CrawlerRunner(settings=settings)
+    crawler_runner = CrawlerRunner(settings=settings, crawler_manage_path="examples/test_spider_one/test_crawler_config.py")
     crawler_runner.start()

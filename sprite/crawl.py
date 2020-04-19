@@ -223,7 +223,8 @@ class CrawlerRunner(metaclass=SingletonMetaClass):
         crawler.set_settings(self._settings)
         self.__crawlers__[name] = crawler
         self.__unique_name_crawler.add(name)
-        logger.debug(f'update {name} crawler')
+        if self._env == ENV_PRODUCT:
+            logger.debug(f'update {name} crawler')
 
     def _register_rpc(self):
         self._rpc_server.register_function(self._run_crawler, "run_crawler")
