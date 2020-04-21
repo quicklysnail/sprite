@@ -2,7 +2,7 @@
 __author__ = 'liyong'
 __date__ = '2019-08-24 19:09'
 
-from sprite.middlewaremanager import MiddlewareManager
+from sprite.middleware.middlewaremanager import MiddlewareManager
 
 test_middleware = MiddlewareManager()
 

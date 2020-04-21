@@ -7,82 +7,138 @@ import threading
 import traceback
 import os
 import time
+import inspect
 from threading import Thread
 from typing import Callable
 from sprite.utils.utils import SingletonMetaClass, Result, transformation_state_to_str, ClassLoader
 from sprite.utils.rpc import ThreadSpriteRPCServer
 from sprite.utils.log import get_logger, set_logger
-from sprite.utils.coroutinePool import coroutine_pool, PyCoroutinePool
+from sprite.utils.coroutinepool import coroutine_pool, PyCoroutinePool
 from sprite.settings import Settings
 from sprite.exceptions import UniqueCrawlerNameException
-from sprite.middlewaremanager import MiddlewareManager
+from sprite.middleware.middlewaremanager import MiddlewareManager
 from sprite.spider import Spider
-from sprite.core.engine import Engine
+from sprite.core.scheduler.memory import MemoryScheduler, MemorySlot
+from sprite.core.engine.coroutine import CoroutineEngine
+from sprite.core.scheduler.base import BaseScheduler, BaseSlot
+from sprite.core.download.base import BaseDownloader
+from sprite.utils.request import MemoryCrawlerCounter
 from sprite.const import *
 
 logger = get_logger()
 
 
 class Crawler:
-    def __init__(self, spider: Spider, middlewareManager: MiddlewareManager = None, settings: Settings = None,
-                 coroutine_pool: 'PyCoroutinePool' = None):
+    def __init__(self, spider: 'Spider', middleware_manager: 'MiddlewareManager' = None,
+                 settings: 'Settings' = None, coroutine_pool: 'PyCoroutinePool' = None):
+        self._spider = spider
         self._settings = settings
         self._coroutine_pool = coroutine_pool
-        self._spider = spider
-        self._middlewareManager = middlewareManager
-        self._engine = None  # spider 和 middlewareManager属于配置对象，可以不需要重置后使用
+        self._middleware_manager = middleware_manager
 
-    def _init(self):
-        assert isinstance(self._spider, Spider), "spider must Spider subclass"
-        assert isinstance(self._settings, Settings), "settings must Settings instance"
-        assert isinstance(self._middlewareManager,
-                          MiddlewareManager), "middlewareManager must MiddlewareManager instance"
-        assert self._coroutine_pool is not None, "coroutine_pool is not init"
-        assert isinstance(self._coroutine_pool, PyCoroutinePool), "coroutine_pool must PyCoroutinePool instance"
-        self._settings.freeze()
-        set_logger(self._settings)
-        self._engine = Engine.from_settings(
-            settings=self._settings, spider=self._spider,
-            middlewareManager=self._middlewareManager,
-            coroutine_pool=self._coroutine_pool)
+        self._engines = []
+        self._engines_task = []
 
-    def run(self) -> bool:
-        if self._engine:
-            return False
-        # 重新创建新的engine实例
-        self._init()
-        self._engine.start()
-        logger.info(f'启动[{self.get_crawler_name()}]')
-        return True
+        self._crawler_counter = None
 
-    def close(self) -> bool:
-        if not self._engine:
-            return False
-        self._engine.close()
-        logger.info(f'关闭crawler')
-        return True
-
-    def is_running(self) -> bool:
-        return self._engine.is_running()
-
-    def is_stopped(self):
-        return self._engine.is_stopped()
-
-    def is_to_close(self):
-        return self._engine.is_to_close()
+        self._slot = None
+        self._scheduler = None
+        self._downloader = None
 
     def get_crawler_name(self) -> str:
         return self._spider.name
 
-    def get_crawler_state(self):
-        return transformation_state_to_str(self._engine.state)
+    def _init_component(self):
+        """
+        组装crawler实例的所有所需组件
+        :return:
+        """
+        self._check_component()
+        self._crawler_counter = MemoryCrawlerCounter(
+            item_counter_unit=self._settings.getint("ITEM_COUNTER_UNIT"),
+            response_counter_unit=self._settings.getint("RESPONSE_COUNTER_UNIT")
+        )
+        self._engines = [
+            CoroutineEngine(
+                self._spider, self._downloader, self._scheduler, self._middleware_manager, self._slot,
+                self._settings, self._crawler_counter
+            )
+            for _ in range(self._settings.getint("ITEM_COUNTER_UNIT"))
+        ]
 
-    def set_coroutine_pool(self, coroutine_pool: 'PyCoroutinePool'):
-        self._coroutine_pool = coroutine_pool
+    def _init_start_request(self):
+        pass
 
-    def set_settings(self, settings: Settings):
-        if self._settings is None:
+    def run(self):
+        self._init_component()
+        self._engines_task = [
+            self._coroutine_pool.go(engine.run(), engine.stop)
+            for engine in self._engines
+        ]
+
+    def pause(self):
+        for engine in self._engines:
+            engine.pause()
+
+    def reduction(self):
+        for engine in self._engines:
+            engine.reduction()
+
+    def replenish_component(self, settings: 'Settings', coroutine_pool: 'PyCoroutinePool', slot: 'BaseSlot',
+                            scheduler: 'BaseScheduler', downloader: 'BaseDownloader'):
+        """
+        # 用全局组件补充crawler的关键组件
+        :param coroutine_pool:
+        :param slot:
+        :param settings:
+        :param scheduler:
+        :return:
+        """
+        # settings
+        if not settings:
             self._settings = settings
+        # scheduler
+        if not self._scheduler:
+            self._scheduler = scheduler
+        # slot
+        if not self._settings:
+            self._settings = slot
+        # coroutine_pool
+        if not self._coroutine_pool:
+            self._coroutine_pool = coroutine_pool
+        # downloader
+        if not self._downloader:
+            self._downloader = downloader
+
+    def _check_component(self):
+        """
+        检查crawler组件是否装配完成，没有完成自动生成默认组件
+        :return:
+        """
+        # settings
+        if not self._settings:
+            self._settings = Settings()
+        # middleware
+        if not self._middleware_manager:
+            self._middleware_manager = MiddlewareManager()
+        # slot
+        if not self._settings:
+            self._settings = MemorySlot()
+        # scheduler
+        if not self._scheduler:
+            self._scheduler = MemoryScheduler()
+            self._scheduler.start()
+        # coroutine_pool
+        if not self._coroutine_pool:
+            self._coroutine_pool = PyCoroutinePool(
+                max_coroutine_amount=self._settings.getint("MAX_COROUTINE_AMOUNT"),
+                max_coroutineIdle_time=self._settings.getint("MAX_COROUTINE_IDLE_TIME"),
+                most_stop=self._settings.getbool("MOST_STOP")
+            )
+            self._coroutine_pool.start()
+        # downloader
+        if not self._downloader:
+            self._downloader = Downloader()
 
 
 class CrawlerManager:

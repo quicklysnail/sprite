@@ -12,7 +12,7 @@ from .pool import ConnectionPool
 from sprite.utils.http.request import Request
 from sprite.utils.http.response import Response
 from .retries import RetryStrategy
-from sprite.utils.coroutinePool import PyCoroutinePool
+from sprite.utils.coroutinepool import PyCoroutinePool
 from .session import ClientDefaults, Session
 from sprite.settings import Settings
 from sprite.utils.log import get_logger

@@ -8,6 +8,7 @@ import copy
 from collections import MutableMapping
 from importlib import import_module
 from pprint import pformat
+from sprite.utils.utils import SingletonMetaClass
 
 from . import default_settings  # 用的相对路径，便于相对导入
 
@@ -266,3 +267,6 @@ def overridden_settings(settings):
         value = settings[name]
         if not isinstance(defvalue, dict) and value != defvalue:
             return name, value
+
+
+settings = Settings()

@@ -27,6 +27,15 @@ class NotStartRequest(Exception): pass
 class DownloadException(Exception): pass
 
 
+class NotUniqueRequestException(Exception): pass
+
+
+class RequestQueueNotExistException(Exception): pass
+
+
+class RequestQueueEmptyException(Exception): pass
+
+
 class SchedulerEmptyException(Exception): pass
 
 
