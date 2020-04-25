@@ -10,7 +10,7 @@ from sprite.core.download import codec
 from sprite.core.download.xfer import BaseXferFilter, XferFilterMap
 from sprite.core.download.proto import BaseProto
 from sprite.core.download.socket import Message
-from sprite.const import XFER_PIPE_GZIP, DEFAULT_CODING, TYPE_REPLY
+from sprite.const import XFER_PIPE_GZIP, DEFAULT_CODING, TYPE_REPLY, HTTP_METHOD_POST
 from sprite.utils.args import Args
 from sprite.utils.log import get_logger
 
@@ -54,14 +54,14 @@ class HttpProto(BaseProto):
     __colon__ = b':'
     __content_type__ = b'Content-Type'
     __content_length__ = b'Content-Length'
-    __content_encoding__ = b'X-Content-Encoding'
+    __content_encoding__ = b'Content-Encoding'
     __x_seq__ = b'X-Seq'
     __x_mtype__ = b'X-Mtype'
     __error_bad_http_msg__ = b'bad HTTP message'
     __error_unsupport_http_code__ = b'unsupport HTTP status code'
 
     def __init__(self, reader: 'StreamReader', writer: 'StreamWriter',
-                 name: 'str' = "http", id: 'int' = 1, print_message: 'bool' = False):
+                 name: 'str' = "http", id: 'int' = 1, print_message: 'bool' = True):
         self._reader = reader
         self._writer = writer
 
@@ -78,42 +78,43 @@ class HttpProto(BaseProto):
     async def pack(self, message: 'Message'):
         # marshal body
         body_bytes = message.marshal_body()
-        header = message.meta
+        # pack request
+        http_request = self._pack_request(message, body_bytes)
+        message.set_size(len(http_request))
+        # write request
+        self._writer.write(http_request)
+        await self._writer.drain()
+        if self._print_message:
+            logger.info(f'Send HTTP Message:\n{http_request}')
+
+    def _pack_request(self, message: 'Message',
+                      body_bytes: 'bytearray') -> 'bytes':
+        header = Args()
+        parse_result = urlparse(message.service_method)
+        if parse_result.netloc != "":
+            header["Host"] = parse_result.netloc
+        if "User-Agent" not in header:
+            header["User-Agent"] = "sprite-httpproto/1.1"
         # do transfer pipe
         for filter in message.xfer_pipe.filters:
             if filter.id() != XFER_PIPE_GZIP:
                 raise Exception(f'unsupport xfer filter: {filter.name()}')
             body_bytes = filter.on_pack(body_bytes)
             header["Content-Encoding"] = "gzip"
-            header["X-Content-Encoding"] = filter.name()
+            header["Content-Encoding"] = filter.name()
         header["X-Seq"] = str(message.seq)
         header["X-Mtype"] = str(message.mtype)
+        if message.http_method == HTTP_METHOD_POST:
+            header["Content-Type"] = get_content_type(message.body_codec, "text/plain;charset=utf-8")
+        header["Content-Length"] = str(len(body_bytes))
+        header["Accept-Encoding"] = "gzip"
         # add arg
         for key, value in message.meta.items():
             header[key] = value
-        # pack request
-        http_request = self._pack_request(message, header, body_bytes)
-        message.set_size(len(http_request))
-        # write request
-        self._writer.write(http_request)
-        await self._writer.drain()
-        if self._print_message:
-            logger.debug(f'Send HTTP Message:\n{http_request.decode(DEFAULT_CODING)}')
-
-    def _pack_request(self, message: 'Message', header: 'Args',
-                      body_bytes: 'bytearray') -> 'bytes':
-        parse_result = urlparse(message.service_method)
-        if parse_result.netloc != "":
-            header["Host"] = parse_result.netloc
-        if "User-Agent" not in header:
-            header["User-Agent"] = "sprite-httpproto/1.1"
-        header["Content-Type"] = get_content_type(message.body_codec, "text/plain;charset=utf-8")
-        header["Content-Length"] = str(len(body_bytes))
-        header["Accept-Encoding"] = "gzip"
         http_request = self.http_request_first_line(message.http_method, parse_result)
         for key, value in header.items():
             http_request = http_request + f'{key}: {value}\r\n'
-        http_request = http_request.encode('utf-8') + body_bytes
+        http_request = http_request.encode(DEFAULT_CODING) + b'\r\n' + body_bytes
         return http_request
 
     @classmethod
@@ -140,7 +141,7 @@ class HttpProto(BaseProto):
             raise Exception("receive error response")
         message.set_mtype(TYPE_REPLY)
         # status line
-        status_line = first_line.replace(b'\r\n', b'').split(self.__space__, 2)
+        status_line = first_line.replace(b'\r\n', b'').split(self.__space__, 1)
         if len(status_line) != 2:
             raise Exception("receive error response")
         if status_line[1] == self.__ok__:
@@ -148,6 +149,9 @@ class HttpProto(BaseProto):
         elif status_line[1] == self.__biz_err__:
             raise Exception("unsupport http code")
         body_size = 0
+        # time line
+        time_line = await self._reader.readline()
+        m = m + time_line
         # header
         while True:
             content = await self._reader.readline()
@@ -157,7 +161,7 @@ class HttpProto(BaseProto):
                 # blank line, to read body
                 break
             # 尝试读取各种header
-            header_line = content.split(self.__colon__, 2)
+            header_line = content.split(self.__colon__, 1)
             if len(header_line) != 2:
                 raise Exception("receive error response")
             header_key = header_line[0]
@@ -187,7 +191,9 @@ class HttpProto(BaseProto):
         message.set_size(size)
         # body
         body_bytes = await self._reader.read(body_size)
-        body_bytes = message.xfer_pipe.on_unpack(bytearray(body_bytes))
+        m = m + body_bytes
+        body_bytes = message.xfer_pipe.on_unpack(body_bytes)
         message.set_body(message.un_marshal_body(body_bytes))
-
+        if self._print_message:
+            logger.info(f'receive HTTP Message:\n{m}')
         return message

@@ -4,20 +4,24 @@
 # @File    : args.py
 
 from urllib.parse import urlparse
+from collections import OrderedDict
 
 
-class Args(dict):
+class Args(OrderedDict):
     def reset(self):
         self.clear()
 
+    def normal_key(self, key:'str'):
+        return key.replace(" ", "").lower()
+
     def __getitem__(self, key: 'str') -> 'str':
-        return self.__getitem__(key)
+        return OrderedDict.__getitem__(self, self.normal_key(key))
 
     def __setitem__(self, key: 'str', value: 'str'):
-        self.__setitem__(key, value)
+        OrderedDict.__setitem__(self, self.normal_key(key), value)
 
     def __delitem__(self, key: 'str'):
-        self.__delitem__(key)
+        OrderedDict.__delitem__(self, self.normal_key(key))
 
     def parse(self, s: 'str'):
         if len(s) != 0:
@@ -42,5 +46,7 @@ class Args(dict):
 
 
 if __name__ == "__main__":
-    result = urlparse("http://www.baidu.com/name?name=liyong")
-    print(result)
+    args = Args()
+    args.parse("Name =liyong&age=16")
+    print(args.string())
+    print(args["Name"])

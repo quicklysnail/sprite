@@ -29,7 +29,7 @@ class BaseXferFilter:
 
     @classmethod
     @abstractmethod
-    def on_pack(cls, data: 'bytearray') -> 'bytearray':
+    def on_pack(cls, data: 'bytes') -> 'bytes':
         """
         对二进制数据进行打包
         :param data:
@@ -38,7 +38,7 @@ class BaseXferFilter:
 
     @classmethod
     @abstractmethod
-    def on_unpack(cls, data: 'bytearray') -> 'bytearray':
+    def on_unpack(cls, data: 'bytes') -> 'bytes':
         """
         对二进制数据进行拆包
         :param data:
@@ -73,7 +73,7 @@ class XferFilterMap:
         return decorate_xfer_filter
 
 
-def get_md5(data: 'bytearray') -> 'bytearray':
+def get_md5(data: 'bytes') -> 'bytes':
     hash = hashlib.new("md5")
     hash.update(data)
     return hash.hexdigest().encode('utf-8')
@@ -93,13 +93,15 @@ class Md5Hash(BaseXferFilter):
         return cls.__id__
 
     @classmethod
-    def on_pack(cls, data: 'bytearray') -> 'bytearray':
+    def on_pack(cls, data: 'bytes') -> 'bytes':
+        if not None or len(data) == 0:
+            return bytes()
         content = get_md5(data)
-        data.append(content)
+        data = data + content
         return data
 
     @classmethod
-    def on_unpack(cls, data: 'bytearray') -> 'bytearray':
+    def on_unpack(cls, data: 'bytes') -> 'bytes':
         data_length = len(data)
         if len(data) < MD5LENGTH:
             raise Exception("please check data, unpack failed")
@@ -108,6 +110,7 @@ class Md5Hash(BaseXferFilter):
         if content != data[(data_length - MD5LENGTH):]:
             raise Exception("please check data, unpack failed")
         return src_data
+
 
 class GzipDecoder(object):
 
@@ -126,26 +129,26 @@ class GzipDecoder(object):
 # gzip
 @XferFilterMap.register()
 class Gzip(BaseXferFilter):
-    __name__ = "gzip"
+    __filter_name__ = "gzip"
     __id__ = 2
     __obj__ = zlib.decompressobj(16 + zlib.MAX_WBITS)
 
     @classmethod
     def name(cls) -> 'str':
-        return cls.__name__
+        return cls.__filter_name__
 
     @classmethod
     def id(cls) -> 'int':
         return cls.__id__
 
     @classmethod
-    def on_pack(cls, data: 'bytearray') -> 'bytearray':
+    def on_pack(cls, data: 'bytes') -> 'bytes':
         if not data:
             return data
         return cls.__obj__.compress(data)
 
     @classmethod
-    def on_unpack(cls, data: 'bytearray') -> 'bytearray':
+    def on_unpack(cls, data: 'bytes') -> 'bytes':
         if not data:
             return data
         return cls.__obj__.decompress(data)
@@ -190,12 +193,12 @@ class XferPipe:
             if not callback_func(idx, filter):
                 break
 
-    def on_pack(self, data: 'bytearray') -> 'bytearray':
+    def on_pack(self, data: 'bytes') -> 'bytes':
         for filter in self._filters:
             data = filter.on_pack(data)
         return data
 
-    def on_unpack(self, data: 'bytearray') -> 'bytearray':
+    def on_unpack(self, data: 'bytes') -> 'bytes':
         for filter in self._filters:
             data = filter.on_unpack(data)
         return data
@@ -205,5 +208,5 @@ class XferPipe:
 
 
 if __name__ == "__main__":
-    test_bytes = bytearray(b'sadad')
+    test_bytes = bytes(b'sadad')
     print(get_md5(test_bytes))

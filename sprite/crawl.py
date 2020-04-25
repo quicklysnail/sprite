@@ -7,7 +7,6 @@ import threading
 import traceback
 import os
 import time
-import inspect
 from threading import Thread
 from typing import Callable
 from sprite.utils.utils import SingletonMetaClass, Result, transformation_state_to_str, ClassLoader
@@ -247,11 +246,12 @@ class CrawlerManager:
 
     @classmethod
     def _add_crawler(cls, crawler: 'Crawler'):
-        assert isinstance(crawler, Crawler), "must is Crawler instance"
-        if crawler.get_crawler_name() in cls.__unique_name_crawler:
+        crawler_name = crawler.get_crawler_name()
+        assert isinstance(crawler, Crawler), f'{crawler_name} is not Crawler instance'
+        if crawler_name in cls.__unique_name_crawler:
             raise UniqueCrawlerNameException("存在重名的crawler")
-        cls.__unique_name_crawler.add(crawler.get_crawler_name())
-        cls.__crawlers__[crawler.get_crawler_name()] = crawler
+        cls.__unique_name_crawler.add(crawler_name)
+        cls.__crawlers__[crawler_name] = crawler
 
     @classmethod
     def get_all_crawler_name(cls):

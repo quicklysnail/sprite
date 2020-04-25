@@ -3,8 +3,11 @@
 # @Author  : li
 # @File    : coroutine.py
 
+import ssl
 import asyncio
+from asyncio.streams import StreamWriter, StreamReader
 from urllib import parse
+from typing import Union, Any
 from sprite.settings import Settings
 from sprite.core.download.base import BaseDownloader
 from sprite.utils.http.request import Request
@@ -14,7 +17,13 @@ from sprite.core.download.socket import Socket, BaseSocket
 from sprite.core.download.codec import ID_JSON
 from sprite.core.download.proto.httpproto import HttpProto
 from sprite.core.download.socket.message import Message
-from sprite.const import HTTP_METHOD_GET, HTTP_METHOD_POST
+from sprite.const import HTTP_METHOD_GET, HTTP_METHOD_POST, HTTP_PROTO_TYPE_HTTPS, HTTP_PROTO_TYPE_HTTP
+
+SECURE_CONTEXT = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+SECURE_CONTEXT.check_hostname = True
+
+INSECURE_CONTEXT = ssl.SSLContext()
+INSECURE_CONTEXT.check_hostname = False
 
 HTTP_PORT = 80
 HTTPS_PORT = 443
@@ -41,7 +50,7 @@ class CoroutineDownloader(BaseDownloader):
             await asyncio.sleep(self._delay)
         # 加锁的目的是为了限制同一时间的并发数量
         async with self._sem:
-            socket = self._generate_socket(request)
+            socket = await self._generate_socket(request)
             try:
                 task = self._request(socket, request)
                 if self._timeout:
@@ -62,22 +71,31 @@ class CoroutineDownloader(BaseDownloader):
         response.request = request
         return response
 
-    def _generate_socket(self, request: 'Request') -> 'BaseSocket':
+    async def _generate_socket(self, request: 'Request') -> 'BaseSocket':
+        # 处理应用层协议
         parse_result = parse.urlparse(request.url)
-        if parse_result.scheme.lower() != "http":
-            raise Exception("only support http protocol")
-
+        remote_port = 80 if parse_result.scheme.lower() == HTTP_PROTO_TYPE_HTTP else 443
+        if parse_result.scheme.lower() not in [HTTP_PROTO_TYPE_HTTPS, HTTP_PROTO_TYPE_HTTP]:
+            raise Exception("only support http or https protocol")
+        # 处理代理
+        remote_addr = self.get_request_proxy(request)
+        if remote_addr:
+            remote_ip, remote_port = remote_addr
+        else:
+            remote_ip = parse_result.netloc.split(":")[0]
+        # 处理keep_alive
         if self._keep_alive:
-            exist_socket = self._socket_hub.get(f'{parse_result.netloc}:{HTTP_PORT}', None)
+            exist_socket = self._socket_hub.get(f'{remote_ip}:{remote_port}', None)
             if exist_socket:
                 return exist_socket
-        reader, writer = asyncio.open_connection(host=parse_result.netloc, port=HTTP_PORT)
+        reader, writer = await self.create_connection(parse_result.scheme.lower(), remote_ip, remote_port)
         new_socket = Socket(request.url, reader, writer, HttpProto(reader, writer))
         if self._keep_alive:
-            self._socket_hub[f'{parse_result.netloc}:{HTTP_PORT}'] = new_socket
+            self._socket_hub[f'{remote_ip}:{remote_port}'] = new_socket
         return new_socket
 
-    def _request_to_message(self, request: 'Request') -> 'Message':
+    @staticmethod
+    def _request_to_message(request: 'Request') -> 'Message':
         if request.method.upper() == HTTP_METHOD_GET:
             message = Message(
                 http_method=HTTP_METHOD_GET,
@@ -96,14 +114,16 @@ class CoroutineDownloader(BaseDownloader):
         # 填充header
         meta.update(request.headers)
         # 填充cookie
-        cookies_str = []
-        for key, value in request.cookies.items():
-            cookies_str.append(value)
-        cookies_str = "; ".join(cookies_str)
-        meta.update({"Cookie": cookies_str})
+        if len(request.cookies) != 0:
+            cookies_str = []
+            for key, value in request.cookies.items():
+                cookies_str.append(value)
+            cookies_str = "; ".join(cookies_str)
+            meta.update({"Cookie": cookies_str})
         return message
 
-    def _message_to_response(self, message: 'Message') -> 'Response':
+    @staticmethod
+    def _message_to_response(message: 'Message') -> 'Response':
         # 提取header和cookie
         meta = message.meta
         headers = {}
@@ -120,3 +140,30 @@ class CoroutineDownloader(BaseDownloader):
             body=message.body
         )
         return response
+
+    @staticmethod
+    def get_request_proxy(request: 'Request') -> Union[tuple, None]:
+        proxy = request.meta.get("proxy", None)
+        if proxy:
+            parse_result = parse.urlparse(proxy)
+            proxy = parse_result.netloc.split(":")
+            remote_ip = proxy[0]
+            remote_port = int(proxy[1])
+            return remote_ip, remote_port
+
+    @staticmethod
+    async def create_connection(proto_type: 'str', host: 'str', port: 'int', ssl: 'Any' = None) -> ['StreamWriter',
+                                                                                                    'StreamReader']:
+        connection_arg = {
+            'host': host,
+            'port': port
+        }
+        if proto_type == HTTP_PROTO_TYPE_HTTPS:
+            if ssl is False:
+                connection_arg['ssl'] = INSECURE_CONTEXT
+            elif ssl is None:
+                connection_arg['ssl'] = SECURE_CONTEXT
+            else:
+                connection_arg['ssl'] = ssl
+        reader, writer = await asyncio.open_connection(**connection_arg)
+        return reader, writer

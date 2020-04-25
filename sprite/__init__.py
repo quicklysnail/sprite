@@ -9,7 +9,7 @@ from .item import Field
 from .settings import Settings
 from .spider import Spider
 from .crawl import Crawler, CrawlerRunner, CrawlerManager
-from .core.download import Downloader
+from .core.download.coroutine import CoroutineDownloader
 from .utils.coroutinepool import PyCoroutinePool, coroutine_pool
 
 __version__ = "0.2.0"

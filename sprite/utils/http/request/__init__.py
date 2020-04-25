@@ -30,7 +30,8 @@ class Request:
         self.callback = callback
         assert callback is not None, 'Request[%s]的回调函数[callback]不能为None!' % self._url
         self.cookies = cookies or {}
-        self._headers = Headers(headers or {}, encoding=encoding)
+        # self._headers = Headers(headers or {}, encoding=encoding)
+        self._headers = headers or {}
 
         self.dont_filter = dont_filter
 
@@ -53,9 +54,8 @@ class Request:
         return self._headers
 
     @headers.setter
-    def headers(self, headers:Dict):
+    def headers(self, headers: Dict):
         self._headers = Headers(headers, encoding=self._encoding)
-
 
     @property
     def meta(self):
@@ -104,4 +104,3 @@ class Request:
             kwargs.setdefault(x, getattr(self, x))
         cls = kwargs.pop('cls', self.__class__)
         return cls(*args, **kwargs)
-

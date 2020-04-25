@@ -2,11 +2,13 @@
 __author__ = 'liyong'
 __date__ = '2019-08-24 12:50'
 
-
 import time
-from sprite import Downloader
+from asyncio import Task
+from sprite import CoroutineDownloader
 from sprite import Request
 from sprite import PyCoroutinePool
+from sprite import Settings
+from sprite.utils.log import set_logger
 
 
 headers = {'Accept': 'text/html, application/xhtml+xml, image/jxr, */*',
@@ -21,20 +23,32 @@ def parse(response):
 
 
 if __name__ == '__main__':
-    url = "https://www.bilibili.com/index/recommend.json"
+    # 实例化一个自定义的settings对象
+    settings = Settings(values={
+        "MAX_DOWNLOAD_NUM": 1,
+        "WORKER_NUM": 1,
+        "DELAY": 0,
+        "LOG_FILE_PATH": "test_spider_one.log",
+        "JOB_DIR": "/Users/liyong/projects/open_source/sprite/examples/test_spider_one",
+        "LONG_SAVE": True,
+    })
+    set_logger(settings)
+    url = "https://www.douyu.com/japi/search/api/getHotList"
+    # request = Request(url=url, headers=headers, callback=parse,
+    #                   meta={"proxy": "http://106.42.211.175:30007"}
+    #                   )
     request = Request(url=url, headers=headers, callback=parse,
-                      meta={"proxy": "http://106.42.211.175:30007"}
                       )
     coroutine_pool = PyCoroutinePool()
-    downloader = Downloader(
-        coroutine_pool=coroutine_pool, loop=coroutine_pool.loop)
+    downloader = CoroutineDownloader(settings)
     coroutine_pool.start()
     start_time = time.time()
-    coroutine_pool.go(downloader.request(request=request))
-    print(f'等待获取下载好的response {time.time()-start_time}')
-    response = downloader.getResponse()
-    print(response.body)
-    print(f'关闭下载器 {time.time()-start_time}')
-    downloader.close()
+    request_task = coroutine_pool.go(downloader.download(request=request))
+    print(f'等待获取下载好的response {time.time() - start_time}')
+    while True:
+        if request_task.done():
+            print(request_task.result().body)
+            break
+        time.sleep(5)
     print(f'关闭协程池 {time.time() - start_time}')
     coroutine_pool.stop()

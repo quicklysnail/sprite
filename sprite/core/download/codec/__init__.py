@@ -36,7 +36,7 @@ class BaseCodec:
 
     @classmethod
     @abstractmethod
-    def marshal(cls, v: 'Any') -> 'bytearray':
+    def marshal(cls, v: 'Any') -> 'bytes':
         """
         序列化
         :return:
@@ -44,7 +44,7 @@ class BaseCodec:
 
     @classmethod
     @abstractmethod
-    def un_marshal(cls, data: 'bytearray') -> 'Any':
+    def un_marshal(cls, data: 'bytes') -> 'Any':
         """
         反序列化
         :param data:
@@ -82,22 +82,22 @@ class CodecMap:
         return cls.__name__map__.get(name)
 
     @classmethod
-    def marshal(cls, id: 'int', v: 'Any') -> 'bytearray':
+    def marshal(cls, id: 'int', v: 'Any') -> 'bytes':
         codec = cls.get(id)
         return codec.marshal(v)
 
     @classmethod
-    def un_marshal(cls, id: 'int', data: 'bytearray') -> 'Any':
+    def un_marshal(cls, id: 'int', data: 'bytes') -> 'Any':
         codec = cls.get(id)
         return codec.un_marshal(data)
 
     @classmethod
-    def marshal_by_name(cls, name: 'str', v: 'Any') -> 'bytearray':
+    def marshal_by_name(cls, name: 'str', v: 'Any') -> 'bytes':
         codec = cls.get_by_name(name)
         return codec.marshal(v)
 
     @classmethod
-    def un_marshal_by_name(cls, name: 'str', data: 'bytearray') -> 'Any':
+    def un_marshal_by_name(cls, name: 'str', data: 'bytes') -> 'Any':
         codec = cls.get_by_name(name)
         return codec.un_marshal(data)
 
@@ -124,22 +124,22 @@ class JsonCodec(BaseCodec):
         return cls.__codec_name__
 
     @classmethod
-    def marshal(cls, v: 'Any') -> 'bytearray':
+    def marshal(cls, v: 'Any') -> 'bytes':
         """
         序列化
         :return:
         """
-        return bytearray(json.dumps(v).encode("utf-8"))
+        return bytes(json.dumps(v).encode("utf-8"))
 
     @classmethod
-    def un_marshal(cls, data: 'bytearray') -> 'Any':
+    def un_marshal(cls, data: 'bytes') -> 'Any':
         """
         反序列化
         :param data:
         :param v:
         :return:
         """
-        return json.loads(data.decode("utf-8"), encoding="utf-8")
+        return json.loads(data.decode("utf-8"))
 
 
 @CodecMap.register()
@@ -164,7 +164,7 @@ class HtmlCodec(BaseCodec):
         return cls.__codec_name__
 
     @classmethod
-    def marshal(cls, v: 'Any') -> 'bytearray':
+    def marshal(cls, v: 'Any') -> 'bytes':
         """
         序列化
         :return:
@@ -172,7 +172,7 @@ class HtmlCodec(BaseCodec):
         raise Exception("无法序列化成html")
 
     @classmethod
-    def un_marshal(cls, data: 'bytearray') -> 'Any':
+    def un_marshal(cls, data: 'bytes') -> 'Any':
         """
         反序列化
         :param data:

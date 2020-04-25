@@ -5,7 +5,7 @@
 
 
 from abc import abstractmethod
-from typing import Any
+from typing import Any, Iterator
 from sprite.utils.args import Args
 from sprite.core.download.xfer import XferPipe
 from sprite.core.download.codec import NONE_CODEC_ID, CodecMap
@@ -99,13 +99,6 @@ class BaseBody:
     @abstractmethod
     def set_body_codec(self, body_codec: 'int'):
         """
-        设置body的序列化器的编号
-        :return:
-        """
-
-    @abstractmethod
-    def register_body_codec(self, body_codec: 'int'):
-        """
         设置body的序列化器编号
         :param body_codec:
         :return:
@@ -127,14 +120,14 @@ class BaseBody:
         """
 
     @abstractmethod
-    def marshal_body(self) -> 'bytearray':
+    def marshal_body(self) -> 'bytes':
         """
         将body序列化
         :return:
         """
 
     @abstractmethod
-    def un_marshal_body(self, body_bytes: 'bytearray'):
+    def un_marshal_body(self, body_bytes: 'bytes'):
         """
         反序列化得到body
         :param body_bytes:
@@ -148,12 +141,12 @@ def check_message_size(size: 'int'):
 
 class Message(BaseHeader, BaseBody):
     def __init__(self, http_method: 'str' = "", service_method: 'str' = "", seq: 'int' = 0, meta: 'Args' = None,
-                 mtype: 'str' = "", body: 'Any' = None, body_codec: 'int' = NONE_CODEC_ID):
+                 mtype: 'str' = "call", body: 'Any' = None, body_codec: 'int' = NONE_CODEC_ID):
         self._http_method = http_method
         self._service_method = service_method
         self._status = 0
-        assert isinstance(meta, Args), "meta must Args instance"
         self._meta = meta or Args()
+        assert isinstance(self._meta, Args), "meta must Args instance"
         self._body = body
         self._xfer_pipe = XferPipe()
         self._size = 0
@@ -226,12 +219,12 @@ class Message(BaseHeader, BaseBody):
     def set_body(self, body: 'Any'):
         self._body = body
 
-    def marshal_body(self) -> 'bytearray':
+    def marshal_body(self) -> 'bytes':
         if self._body is None:
-            return bytearray()
+            return bytes()
         return CodecMap.marshal(self._body_codec, self._body)
 
-    def un_marshal_body(self, body_bytes: 'bytearray') -> 'Any':
+    def un_marshal_body(self, body_bytes: 'bytes') -> 'Any':
         if len(body_bytes) == 0:
             return None
         return CodecMap.un_marshal(self._body_codec, body_bytes)

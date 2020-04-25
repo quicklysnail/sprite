@@ -40,10 +40,10 @@ class Result(dict):
             return f'find one exception: \n{traceback.format_exc()}'
 
     def __getattr__(self, item):
-        return self[item]
+        return dict.__getitem__(self, item)
 
     def __setattr__(self, key, value):
-        self[key] = value
+        dict.__setitem__(self, key, value)
 
 
 def transformation_state_to_str(state_num):
