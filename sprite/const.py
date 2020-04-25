@@ -3,6 +3,8 @@
 # @Author  : li
 # @File    : const.py
 
+DEFAULT_CODING = "utf-8"
+
 COROUTINE_SLEEP_TIME = 0.0001
 
 THREAD_SLEEP_TIME = 0.001
@@ -37,7 +39,25 @@ SCHEDULER_RUNNING = 1
 # 调度器暂停
 SCHEDULER_STOPPED = 3
 
+SOCKET_STATE_NORMAL = 0
+
+SOCKET_STATE_ACTIVATE_CLOSE = 1
+
 # 开发环境
 ENV_DEV = "dev"
 
 ENV_PRODUCT = "product"
+
+MD5LENGTH = 16
+
+STATUS_OK = 200
+
+XFER_PIPE_GZIP = "gzip"
+
+TYPE_CALL = "call"
+
+TYPE_REPLY = "reply"
+
+HTTP_METHOD_GET = "GET"
+
+HTTP_METHOD_POST = "POST"

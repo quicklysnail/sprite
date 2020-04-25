@@ -37,16 +37,21 @@ class CoroutineEngine(BaseEngine):
         运行引擎
         """
         with self._state_lock:
-            assert self._state ==ENGINE_STATE_STOPPED, "engine must in stopped state"
+            assert self._state != ENGINE_STATE_STOPPED, "engine not in stopped state"
             self._state = ENGINE_STATE_RUNNING
         await self._do_work()
+
+    @property
+    def state(self):
+        with self._state_lock:
+            return self._state
 
     def stop(self):
         """
         停止引擎
         """
         with self._state_lock:
-            assert self._state == ENGINE_STATE_RUNNING, "engine must in running state"
+            assert self._state not in [ENGINE_STATE_RUNNING, ENGINE_STATE_PAUSE], "engine not in running or pause state"
             self._state = ENGINE_STATE_STOPPED
 
     def pause(self):
@@ -55,7 +60,7 @@ class CoroutineEngine(BaseEngine):
         :return:
         """
         with self._state_lock:
-            assert self._state == ENGINE_STATE_RUNNING, "engine must in running state"
+            assert self._state != ENGINE_STATE_RUNNING, "engine not in running state"
             self._state_signal.clear()
             self._state = ENGINE_STATE_PAUSE
 
@@ -65,7 +70,7 @@ class CoroutineEngine(BaseEngine):
         :return:
         """
         with self._state_lock:
-            assert self._state == ENGINE_STATE_PAUSE, "engine must in pause state"
+            assert self._state != ENGINE_STATE_PAUSE, "engine not in pause state"
             self._state_signal.set()
             self._state = ENGINE_STATE_RUNNING
 
@@ -75,7 +80,7 @@ class CoroutineEngine(BaseEngine):
         从respond里面获取到request同样上传到调度器
         :return:
         """
-        while self._state == ENGINE_STATE_RUNNING:
+        while self._state == ENGINE_STATE_RUNNING or await self.recognition_state_signal():
             try:
                 request = self._scheduler.next_request(self._crawler_name)
                 self._slot.addRequest(self._crawler_name)
@@ -89,6 +94,8 @@ class CoroutineEngine(BaseEngine):
                     continue
                 else:
                     # 已经没有正在处理的request了
+                    with self._state_lock:
+                        self._state = ENGINE_STATE_STOPPED
                     break
             except Exception:
                 logger.error(f'find one error: \n{traceback.format_exc()}')

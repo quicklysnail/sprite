@@ -8,7 +8,7 @@ from collections import defaultdict
 from sprite.core.scheduler.base import BaseScheduler
 from sprite.utils.queues import PriorityQueue, Queue
 from sprite.utils.pybloomfilter import ScalableBloomFilter
-from sprite.settings import settings
+from sprite.settings import Settings
 from sprite import Request
 from sprite.const import SCHEDULER_STOPPED, SCHEDULER_RUNNING
 from sprite.exceptions import NotUniqueRequestException, RequestQueueNotExistException, RequestQueueEmptyException
@@ -16,15 +16,16 @@ from sprite.exceptions import NotUniqueRequestException, RequestQueueNotExistExc
 
 class MemoryScheduler(BaseScheduler):
 
-    def __init__(self):
+    def __init__(self, settings: 'Settings'):
+        self._settings = settings
         self._store = None
         self._df = None
         super(MemoryScheduler, self).__init__()
 
     def _init(self):
         self._store = defaultdict(PriorityQueue)
-        initial_capacity = settings.get("INITIAL_CAPACITY")
-        error_rate = settings.getfloat("ERROR_RATE")
+        initial_capacity = self._settings.get("INITIAL_CAPACITY")
+        error_rate = self._settings.getfloat("ERROR_RATE")
         self._df = ScalableBloomFilter(initial_capacity, error_rate)
 
     def start(self):
@@ -34,7 +35,7 @@ class MemoryScheduler(BaseScheduler):
 
     def stop(self):
         assert self._state != SCHEDULER_STOPPED, "scheduler not running"
-        self._state = SCHEDULER_RUNNING
+        self._state = SCHEDULER_STOPPED
 
     def enqueue_request(self, crawler_name: 'str', request: 'Request'):
         assert self._state != SCHEDULER_STOPPED, "scheduler not running"
