@@ -34,11 +34,11 @@ if __name__ == '__main__':
     })
     set_logger(settings)
     url = "https://www.douyu.com/japi/search/api/getHotList"
-    # request = Request(url=url, headers=headers, callback=parse,
-    #                   meta={"proxy": "http://106.42.211.175:30007"}
-    #                   )
     request = Request(url=url, headers=headers, callback=parse,
+                      meta={"proxy": "http://106.42.211.175:30007"}
                       )
+    # request = Request(url=url, headers=headers, callback=parse,
+    #                   )
     coroutine_pool = PyCoroutinePool()
     downloader = CoroutineDownloader(settings)
     coroutine_pool.start()

@@ -13,7 +13,7 @@ class Spider:
     def __init__(self):
         self.logger = get_logger()
 
-    async def start_request(self):
+    def start_request(self):
         pass
 
     async def parse(self, response: 'Response'):

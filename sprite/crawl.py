@@ -17,6 +17,7 @@ from sprite.settings import Settings
 from sprite.exceptions import UniqueCrawlerNameException
 from sprite.middleware.middlewaremanager import MiddlewareManager
 from sprite.spider import Spider
+from sprite.utils.http.request import Request
 from sprite.core.scheduler.memory import MemoryScheduler, MemorySlot
 from sprite.core.engine.coroutine import CoroutineEngine
 from sprite.core.scheduler.base import BaseScheduler, BaseSlot
@@ -67,7 +68,13 @@ class Crawler:
         ]
 
     def _init_start_request(self):
-        pass
+        if self._spider.start_requests:
+            for url in self._spider.start_requests:
+                self._scheduler.enqueue_request(self._spider.name, Request(url=url, callback=self._spider.parse))
+        else:
+            for request in self._spider.start_request():
+                assert isinstance(request, Request), "call start_request method receive no Request instance"
+                self._scheduler.enqueue_request(self._spider.name, request)
 
     def get_crawler_name(self) -> str:
         return self._spider.name

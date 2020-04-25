@@ -17,16 +17,4 @@ class CustomSpider(Spider):
 
 
 if __name__ == "__main__":
-    # addr = "localhost:8088"
-    # result = client_call(addr, "get_all_crawler_name")
-    # print(result)
-    # result = client_call(addr, "stop_server")
-    # print(result)
-    # result = client_call(addr, "stop_server")
-    # print(result)
-    # module_name = "examples.tests.test_crawler_config.py"
-    # module_object = import_module(module_name)
-    # print(module_object)
-    # print(CrawlerRunner.get_all_crawler())
-    test_spider = CustomSpider()
-    assert isinstance(test_spider, CrawlerRunner), "not subclass"
+    crawler_runner = CrawlerRunner()

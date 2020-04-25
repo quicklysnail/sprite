@@ -130,7 +130,7 @@ class CoroutineEngine(BaseEngine):
             if isinstance(result, Request):
                 # 丢入调度器中
                 request = result
-                self._scheduler.enqueue_request(request)
+                self._scheduler.enqueue_request(self._crawler_name, request)
                 return
             elif isinstance(result, Response):
                 response = result
@@ -174,7 +174,7 @@ class CoroutineEngine(BaseEngine):
                 await self._handle_item_result(result)
 
     async def _handle_request_result(self, request: 'Request'):
-        self._scheduler.enqueue_request(request)
+        self._scheduler.enqueue_request(self._crawler_name, request)
 
     async def _handle_item_result(self, item: 'Item'):
         logger.debug(
