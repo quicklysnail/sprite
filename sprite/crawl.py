@@ -7,6 +7,7 @@ import threading
 import traceback
 import os
 import time
+import inspect
 from threading import Thread
 from typing import Callable
 from sprite.utils.utils import SingletonMetaClass, Result, transformation_state_to_str, ClassLoader
@@ -72,6 +73,7 @@ class Crawler:
             for url in self._spider.start_requests:
                 self._scheduler.enqueue_request(self._spider.name, Request(url=url, callback=self._spider.parse))
         else:
+            assert not inspect.iscoroutinefunction(self._spider.start_request), "start_request must is normal method"
             for request in self._spider.start_request():
                 assert isinstance(request, Request), "call start_request method receive no Request instance"
                 self._scheduler.enqueue_request(self._spider.name, request)
@@ -185,6 +187,7 @@ class Crawler:
         # settings
         if not self._settings:
             self._settings = Settings()
+            set_logger(self._settings)
         # middleware
         if not self._middleware_manager:
             self._middleware_manager = MiddlewareManager()
