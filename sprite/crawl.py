@@ -8,6 +8,7 @@ import traceback
 import os
 import time
 import inspect
+import asyncio
 from threading import Thread
 from typing import Callable
 from sprite.utils.utils import SingletonMetaClass, Result, transformation_state_to_str, ClassLoader
@@ -50,67 +51,68 @@ class Crawler:
 
         self._singleton = singleton
 
+        self._state = CRAWLER_STATE_STOPPED
+        self._state_lock = threading.Lock()
+
     def _init_component(self):
         """
         组装crawler实例的所有所需组件
         :return:
         """
-        self._check_component()
-        self._crawler_counter = MemoryCrawlerCounter(
-            item_counter_unit=self._settings.getint("ITEM_COUNTER_UNIT"),
-            response_counter_unit=self._settings.getint("RESPONSE_COUNTER_UNIT")
-        )
-        self._engines = [
-            CoroutineEngine(
-                self._spider, self._downloader, self._scheduler, self._middleware_manager, self._slot,
-                self._settings, self._crawler_counter
+        try:
+
+            self._check_component()
+            self._crawler_counter = MemoryCrawlerCounter(
+                item_counter_unit=self._settings.getint("ITEM_COUNTER_UNIT"),
+                response_counter_unit=self._settings.getint("RESPONSE_COUNTER_UNIT")
             )
-            for _ in range(self._settings.getint("ITEM_COUNTER_UNIT"))
-        ]
+            self._engines = [
+                CoroutineEngine(id,
+                                self._spider, self._downloader, self._scheduler, self._middleware_manager, self._slot,
+                                self._settings, self._crawler_counter
+                                )
+                for id in range(self._settings.getint("WORKER_NUM"))
+            ]
+        except:
+            logger.info(traceback.format_exc())
 
     def _init_start_request(self):
+        self._middleware_manager.process_spider_start(self._spider)
         if self._spider.start_requests:
             for url in self._spider.start_requests:
                 self._scheduler.enqueue_request(self._spider.name, Request(url=url, callback=self._spider.parse))
         else:
-            assert not inspect.iscoroutinefunction(self._spider.start_request), "start_request must is normal method"
+            assert inspect.ismethod(self._spider.start_request), "start_request must is normal method"
             for request in self._spider.start_request():
                 assert isinstance(request, Request), "call start_request method receive no Request instance"
                 self._scheduler.enqueue_request(self._spider.name, request)
 
-    def get_crawler_name(self) -> str:
+    def get_crawler_name(self) -> 'str':
         return self._spider.name
 
     def get_crawler_state(self) -> 'str':
-        pass
+        with self._state_lock:
+            return self._state
 
     def is_running(self) -> 'bool':
-        result = True
-        for engine in self._engines:
-            if engine.state == ENGINE_STATE_RUNNING:
-                result = False
-                break
-        return result
+        with self._state_lock:
+            return True if self._state == CRAWLER_STATE_PAUSE else False
 
     def is_paused(self) -> bool:
-        result = True
-        for engine in self._engines:
-            if engine.state == ENGINE_STATE_PAUSE:
-                result = False
-                break
-        return result
+        with self._state_lock:
+            return True if self._state == CRAWLER_STATE_RUNNING else False
 
     def is_stopped(self):
-        result = True
-        for engine in self._engines:
-            if engine.state != ENGINE_STATE_STOPPED:
-                result = False
-                break
-        return result
+        with self._state_lock:
+            return True if self._state == CRAWLER_STATE_STOPPED else False
 
-    def run(self):
-        if len(self._engines_task) != 0:
-            return
+    async def async_run(self):
+        with self._state_lock:
+            if self._state == CRAWLER_STATE_STOPPED:
+                logger.info(f'start {self._spider.name} crawler')
+                self._state = CRAWLER_STATE_RUNNING
+            else:
+                return
         self._init_component()
         self._init_start_request()
         try:
@@ -121,36 +123,52 @@ class Crawler:
         except:
             logger.error(f'run engine find error: \n{traceback.format_exc()}')
 
-    def stop(self):
+    def run(self):
+        with self._state_lock:
+            if self._state == CRAWLER_STATE_STOPPED:
+                logger.info(f'start {self._spider.name} crawler')
+                self._state = CRAWLER_STATE_RUNNING
+            else:
+                return
+        self._init_component()
+        if self._singleton:
+            self._coroutine_pool.start()
+        self._init_start_request()
         try:
-            for engine_task, engine in zip(self._engines_task, self._engines):
-                if engine.state not in [ENGINE_STATE_RUNNING, ENGINE_STATE_PAUSE]:
-                    continue
-                if engine_task.cancelled():
-                    continue
-                engine_task.cancel()
+            self._engines_task = [
+                self._coroutine_pool.go(engine.run(), engine.stop)
+                for engine in self._engines
+            ]
         except:
-            logger.error(f'stop engine find error: \n{traceback.format_exc()}')
-        try:
+            logger.error(f'run engine find error: \n{traceback.format_exc()}')
+
+    def stop(self):
+        with self._state_lock:
+            if self._state == CRAWLER_STATE_STOPPED:
+                return
+            try:
+                for engine_task, engine in zip(self._engines_task, self._engines):
+                    if engine.state not in [ENGINE_STATE_RUNNING, ENGINE_STATE_PAUSE]:
+                        continue
+                    engine.stop()
+                self._middleware_manager.process_spider_close(self._spider)
+            except:
+                logger.error(f'stop engine find error: \n{traceback.format_exc()}')
             if self._singleton:
                 self._coroutine_pool.stop()
                 self._scheduler.stop()
-        except:
-            logger.error(f'stop public component find error: \n{traceback.format_exc()}')
+            self._state = CRAWLER_STATE_STOPPED
 
     def pause(self):
-        try:
+        with self._state_lock:
             for engine in self._engines:
                 engine.pause()
-        except:
-            logger.error(f'pause engine find error: \n{traceback.format_exc()}')
+            self._state = CRAWLER_STATE_PAUSE
 
     def reduction(self):
-        try:
+        with self._state_lock:
             for engine in self._engines:
                 engine.reduction()
-        except:
-            logger.error(f'reduction engine find error: \n{traceback.format_exc()}')
 
     def replenish_component(self, settings: 'Settings', coroutine_pool: 'PyCoroutinePool', slot: 'BaseSlot',
                             scheduler: 'BaseScheduler', downloader: 'BaseDownloader'):
@@ -169,8 +187,8 @@ class Crawler:
         if not self._scheduler:
             self._scheduler = scheduler
         # slot
-        if not self._settings:
-            self._settings = slot
+        if not self._slot:
+            self._slot = slot
         # coroutine_pool
         if not self._coroutine_pool:
             self._coroutine_pool = coroutine_pool
@@ -196,7 +214,7 @@ class Crawler:
             self._slot = MemorySlot()
         # scheduler
         if not self._scheduler:
-            self._scheduler = MemoryScheduler()
+            self._scheduler = MemoryScheduler(self._settings)
             self._scheduler.start()
         # coroutine_pool
         if not self._coroutine_pool:
@@ -205,7 +223,6 @@ class Crawler:
                 max_coroutineIdle_time=self._settings.getint("MAX_COROUTINE_IDLE_TIME"),
                 most_stop=self._settings.getbool("MOST_STOP")
             )
-            self._coroutine_pool.start()
         # downloader
         if not self._downloader:
             self._downloader = CoroutineDownloader(self._settings)
@@ -247,7 +264,7 @@ class CrawlerManager:
     def has_params_get_crawler_func(cls, **kwargs):
         def _wrap_get_crawler(func: Callable):
             try:
-                crawler = func()
+                crawler = func(None)
                 cls._add_crawler(crawler)
             except:
                 logger.error(f'add crawler failed: \n{traceback.format_exc()}')
@@ -293,15 +310,12 @@ class CrawlerLoader(Thread):
             time.sleep(THREAD_SLEEP_TIME)
 
     def load_crawler(self):
-        try:
-            self.__class_loader__.load_from_file(self.__crawler_manage_path)
-            current_crawlers = {}
-            for crawler_manager_class_object in self.__class_loader__.class_object.values():
-                current_crawlers.update(crawler_manager_class_object.get_all_crawler())
-            self.__crawler_runner.update_crawler(current_crawlers)
-            self.__class_loader__.clear()
-        except Exception:
-            logger.error(f'load crawler find one error: \n{traceback.format_exc()}')
+        self.__class_loader__.load_from_file(self.__crawler_manage_path)
+        current_crawlers = {}
+        for crawler_manager_class_object in self.__class_loader__.class_object.values():
+            current_crawlers.update(crawler_manager_class_object.get_all_crawler())
+        self.__crawler_runner.update_crawler(current_crawlers)
+        self.__class_loader__.clear()
 
 
 class CrawlerRunner(metaclass=SingletonMetaClass):
@@ -338,7 +352,7 @@ class CrawlerRunner(metaclass=SingletonMetaClass):
             self._slot = MemorySlot()
         # scheduler
         if not self._scheduler:
-            self._scheduler = MemoryScheduler()
+            self._scheduler = MemoryScheduler(self._settings)
             self._scheduler.start()
         # coroutine_pool
         if not self._coroutine_pool:
@@ -400,8 +414,10 @@ class CrawlerRunner(metaclass=SingletonMetaClass):
     def start(self):
         if not self._running_event.is_set():
             self._init()
-            # self._crawler_loader.run()
-            self._crawler_loader.load_crawler()
+            try:
+                self._crawler_loader.load_crawler()
+            except Exception:
+                logger.error(f'load crawler find one error: \n{traceback.format_exc()}')
             logger.info("server start")
             signal.signal(signal.SIGTERM, self._close)  # SIGTERM 关闭程序信号
             signal.signal(signal.SIGINT, self._close)  # 接收ctrl+c 信号
@@ -412,7 +428,7 @@ class CrawlerRunner(metaclass=SingletonMetaClass):
             crawler = self.__crawlers__.get(crawl_name, None)
             if crawler:
                 if crawler.is_stopped():
-                    crawler.run()
+                    self._coroutine_pool.go(crawler.async_run(), crawler.stop)
                     result = Result("ok", data=crawl_name)
                 else:
                     result = Result("failed", data="crawler is running")
@@ -427,7 +443,7 @@ class CrawlerRunner(metaclass=SingletonMetaClass):
                 for crawler in self.__crawlers__.values():
                     if crawler.is_stopped():
                         to_run_crawler.append(crawler.get_crawler_name())
-                        crawler.run()
+                        self._coroutine_pool.go(crawler.async_run(), crawler.stop)
             return Result("ok", data=to_run_crawler).serialize()
 
     def _close_crawl(self, crawler_name) -> str:
@@ -487,14 +503,12 @@ class CrawlerRunner(metaclass=SingletonMetaClass):
             return Result("ok", data=transformation_state_to_str(self._coroutine_pool.state)).serialize()
 
     def _reload_crawler(self) -> str:
-        if self._env == ENV_DEV:
-            result = Result("failed", data="dev env is auto reload crawler")
-        else:
-            try:
-                self._crawler_loader.load_crawler()
-                result = Result("ok", data="reload success")
-            except Exception:
-                result = Result('failed', data=f'at reload fund one error: \n{traceback.format_exc()}')
+        try:
+            self._crawler_loader.load_crawler()
+            result = Result("ok", data="reload success")
+        except Exception:
+            logger.error(f'load crawler find one error: \n{traceback.format_exc()}')
+            result = Result('failed', data=f'at reload fund one error: \n{traceback.format_exc()}')
         return result.serialize()
 
     def update_crawler(self, crawlers: dict):

@@ -6,10 +6,10 @@
 from abc import abstractmethod
 from sprite.utils.utils import SingletonMetaClass
 from sprite import Request
-from sprite.const import *
+from sprite.const import SCHEDULER_STOPPED, SCHEDULER_RUNNING
 
 
-class BaseScheduler(metaclass=SingletonMetaClass):
+class BaseScheduler:
 
     def __init__(self):
         # 一直都在单线程中运行，没有线程切换和协程切换的问题
@@ -67,7 +67,7 @@ class BaseScheduler(metaclass=SingletonMetaClass):
 """
 
 
-class BaseSlot(metaclass=SingletonMetaClass):
+class BaseSlot:
 
     @abstractmethod
     def addRequest(self, crawler_name: 'str'):
@@ -98,7 +98,7 @@ class BaseSlot(metaclass=SingletonMetaClass):
         :return:
         """
     @abstractmethod
-    def join(self):
+    def join(self, crawler_name: 'str'):
         """
         如果存在正在处理的request则阻塞等待
         :return:

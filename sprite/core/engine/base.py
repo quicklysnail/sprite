@@ -17,16 +17,16 @@ from sprite.utils.request import BaseCrawlerCounter
 
 class BaseEngine:
 
-    def __init__(self, spider: 'Spider', downloader: 'BaseDownloader', scheduler: 'BaseScheduler',
+    def __init__(self, id: 'int', spider: 'Spider', downloader: 'BaseDownloader', scheduler: 'BaseScheduler',
                  middleware_manager: 'MiddlewareManager', slot: 'BaseSlot', settings: 'Settings',
                  crawler_counter: 'BaseCrawlerCounter'):
         self._crawler_name = spider.name
+        self._id = id
 
         self._settings = settings
 
         self._state = ENGINE_STATE_STOPPED
         self._state_signal = Event()
-        self._state_lock = Lock()
 
         # 引擎组件
         self._spider = spider

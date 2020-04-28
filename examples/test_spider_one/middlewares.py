@@ -39,11 +39,11 @@ async def test_downloader_middleware(item=None, spider=None):
 
 # 增加spider中间件，在启动spider之前执行
 @test_middleware.add_spider_middleware(isBefore=True)
-async def test_downloader_middleware(spider=None):
+def test_downloader_middleware(spider=None):
     spider.logger.info("这是spider中间件 before")
 
 
 # 增加spider中间件，在启动spider之后执行
 @test_middleware.add_spider_middleware(isBefore=False)
-async def test_downloader_middleware(spider=None):
+def test_downloader_middleware(spider=None):
     spider.logger.info("这是spdier中间件 after")

@@ -3,6 +3,7 @@
 # @Author  : li
 # @File    : utils.py
 
+import inspect
 import traceback
 import json
 import importlib
@@ -79,13 +80,14 @@ class ClassLoader:
         if self.__reload is True: importlib.reload(user_module)
         for name, cls in inspect.getmembers(user_module):
             # 自定义的对比函数
-            if not issubclass(cls, self.__base_class):
-                continue
-            else:
-                if name in self.__unique_class_object_name and self.__allow_duplicate is False:
-                    raise Exception("found duplicated class %s" % name)
-            self.__unique_class_object_name.add(name)
-            self.__class_object[name] = cls
+            if inspect.isclass(cls):
+                if not issubclass(cls, self.__base_class):
+                    continue
+                else:
+                    if name in self.__unique_class_object_name and self.__allow_duplicate is False:
+                        raise Exception("found duplicated class %s" % name)
+                self.__unique_class_object_name.add(name)
+                self.__class_object[name] = cls
 
     @property
     def class_object(self):

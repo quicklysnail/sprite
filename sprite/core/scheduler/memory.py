@@ -5,7 +5,7 @@
 
 from asyncio import Event
 from collections import defaultdict
-from sprite.core.scheduler.base import BaseScheduler
+from sprite.core.scheduler.base import BaseScheduler, BaseSlot
 from sprite.utils.queues import PriorityQueue, Queue
 from sprite.utils.pybloomfilter import ScalableBloomFilter
 from sprite.settings import Settings
@@ -29,16 +29,16 @@ class MemoryScheduler(BaseScheduler):
         self._df = ScalableBloomFilter(initial_capacity, error_rate)
 
     def start(self):
-        assert self._state != SCHEDULER_STOPPED, "scheduler not stopped"
+        assert self._state == SCHEDULER_STOPPED, "scheduler is not stopped"
         self._init()
         self._state = SCHEDULER_RUNNING
 
     def stop(self):
-        assert self._state != SCHEDULER_STOPPED, "scheduler not running"
+        assert self._state == SCHEDULER_RUNNING, "scheduler not running"
         self._state = SCHEDULER_STOPPED
 
     def enqueue_request(self, crawler_name: 'str', request: 'Request'):
-        assert self._state != SCHEDULER_STOPPED, "scheduler not running"
+        assert self._state == SCHEDULER_RUNNING, "scheduler not running"
         unique_request = request.toUniqueStr()
         if unique_request in self._df:
             raise NotUniqueRequestException("request is repeat")
@@ -46,7 +46,7 @@ class MemoryScheduler(BaseScheduler):
         self._store[crawler_name].push(request, request.priority)
 
     def next_request(self, crawler_name: 'str') -> 'Request':
-        assert self._state != SCHEDULER_STOPPED, "scheduler not running"
+        assert self._state == SCHEDULER_RUNNING, "scheduler not running"
         request_queue = self._store.get(crawler_name, None)
         if request_queue is None:
             raise RequestQueueNotExistException("request queue is no exist")
@@ -72,7 +72,7 @@ class MemoryScheduler(BaseScheduler):
         return length
 
 
-class MemorySlot:
+class MemorySlot(BaseSlot):
     def __init__(self):
         self._state_signal = defaultdict(Event)
         self.__processing_request = defaultdict(int)

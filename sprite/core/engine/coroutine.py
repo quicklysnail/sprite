@@ -6,7 +6,7 @@
 import traceback
 import asyncio
 from typing import Callable, Coroutine
-from types import AsyncGeneratorType, GeneratorType
+from types import AsyncGeneratorType
 from sprite.core.engine.base import BaseEngine
 from sprite.const import ENGINE_STATE_STOPPED, ENGINE_STATE_RUNNING, ENGINE_STATE_PAUSE, COROUTINE_SLEEP_TIME
 from sprite.core.scheduler.base import BaseScheduler, BaseSlot
@@ -26,53 +26,52 @@ logger = get_logger()
 
 class CoroutineEngine(BaseEngine):
 
-    def __init__(self, spider: 'Spider', downloader: 'BaseDownloader', scheduler: 'BaseScheduler',
+    def __init__(self, id: 'int', spider: 'Spider', downloader: 'BaseDownloader', scheduler: 'BaseScheduler',
                  middleware_manager: 'MiddlewareManager', slot: 'BaseSlot', settings: 'Settings',
                  crawler_counter: 'BaseCrawlerCounter'):
-        super(CoroutineEngine, self).__init__(spider, downloader, scheduler, middleware_manager, slot,
+        super(CoroutineEngine, self).__init__(id, spider, downloader, scheduler, middleware_manager, slot,
                                               settings, crawler_counter)
 
     async def run(self):
         """
         运行引擎
         """
-        with self._state_lock:
-            assert self._state != ENGINE_STATE_STOPPED, "engine not in stopped state"
-            self._state = ENGINE_STATE_RUNNING
+        print("运行引擎")
+        assert self._state == ENGINE_STATE_STOPPED, "engine not in stopped state"
+        self._state = ENGINE_STATE_RUNNING
+        self._state_signal.set()
         await self._do_work()
 
     @property
     def state(self):
-        with self._state_lock:
-            return self._state
+        return self._state
 
     def stop(self):
         """
         停止引擎
         """
-        with self._state_lock:
-            assert self._state not in [ENGINE_STATE_RUNNING, ENGINE_STATE_PAUSE], "engine not in running or pause state"
-            self._state = ENGINE_STATE_STOPPED
+        print(f'准备停止engine {self._state}')
+        assert self._state in [ENGINE_STATE_RUNNING, ENGINE_STATE_PAUSE], "engine not in running or pause state"
+        self._state = ENGINE_STATE_STOPPED
+        logger.info(f'关闭{self._crawler_name}的engine {self._id}')
 
     def pause(self):
         """
         暂停引擎
         :return:
         """
-        with self._state_lock:
-            assert self._state != ENGINE_STATE_RUNNING, "engine not in running state"
-            self._state_signal.clear()
-            self._state = ENGINE_STATE_PAUSE
+        assert self._state == ENGINE_STATE_RUNNING, "engine not in running state"
+        self._state_signal.clear()
+        self._state = ENGINE_STATE_PAUSE
 
     def reduction(self):
         """
         恢复运行引擎
         :return:
         """
-        with self._state_lock:
-            assert self._state != ENGINE_STATE_PAUSE, "engine not in pause state"
-            self._state_signal.set()
-            self._state = ENGINE_STATE_RUNNING
+        assert self._state == ENGINE_STATE_PAUSE, "engine not in pause state"
+        self._state_signal.set()
+        self._state = ENGINE_STATE_RUNNING
 
     async def _do_work(self):
         """
@@ -84,7 +83,10 @@ class CoroutineEngine(BaseEngine):
             try:
                 request = self._scheduler.next_request(self._crawler_name)
                 self._slot.addRequest(self._crawler_name)
-                await self._do_crawl(request)
+                try:
+                    await self._do_crawl(request)
+                except Exception as e:
+                    logger.error(f'find one error: \r\n{traceback.format_exc()}')
                 self._slot.getRequest(self._crawler_name)
             except RequestQueueEmptyException:
                 # 调度器中request队列为空
@@ -94,8 +96,7 @@ class CoroutineEngine(BaseEngine):
                     continue
                 else:
                     # 已经没有正在处理的request了
-                    with self._state_lock:
-                        self._state = ENGINE_STATE_STOPPED
+                    print(f'准备自动停止engine  {self._state}')
                     break
             except Exception:
                 logger.error(f'find one error: \n{traceback.format_exc()}')

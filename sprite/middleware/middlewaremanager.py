@@ -48,8 +48,12 @@ class MiddlewareManager:
                 middleware[AFTER].extend(middleware_manager[middleware_type][AFTER])
 
     def _type_check(self, coroutine: 'Any'):
-        if not inspect.iscoroutine(coroutine):
-            raise TypeNotSupport("中间件类型必须是协程！")
+        if not inspect.iscoroutinefunction(coroutine):
+            raise TypeNotSupport("download,pipeline中间件类型必须是协程")
+
+    def _type_check_func(self, func: 'Callable'):
+        if not inspect.isfunction(func):
+            raise TypeNotSupport("spider中间件类型必须是普通函数")
 
     def _getMiddleWareByposition(self, middleware_name: str, position: str = None) -> List:
         if position:
@@ -83,7 +87,7 @@ class MiddlewareManager:
     def add_spider_middleware(self, isBefore: bool = True):
         def wrappFunc(func: Callable):
             def register_middleware(func: Callable):
-                self._type_check(func)
+                self._type_check_func(func)
                 if isBefore:
                     self._middleware_store[SPIDER_MIDDLEWARE][BEFORE].append(func)
                 else:
@@ -126,13 +130,13 @@ class MiddlewareManager:
             if result is None:
                 return
 
-    async def process_spider_start(self, spider: Spider):
+    def process_spider_start(self, spider: Spider):
         for method in self._getMiddleWareByposition(middleware_name=SPIDER_MIDDLEWARE, position=BEFORE):
-            await method(spider=spider)
+            method(spider=spider)
 
-    async def process_spider_close(self, spider: Spider):
+    def process_spider_close(self, spider: Spider):
         for method in self._getMiddleWareByposition(middleware_name=SPIDER_MIDDLEWARE, position=AFTER):
-            await method(spider=spider)
+            method(spider=spider)
 
     @staticmethod
     def func_name(func):

@@ -15,5 +15,5 @@ if __name__ == "__main__":
         "LONG_SAVE": True,
     })
     crawler_runner = CrawlerRunner(settings=settings,
-                                   crawler_manage_path="examples/test_spider_one/test_crawler_config.py")
+                                   crawler_manage_path="test_crawler_config")
     crawler_runner.start()
