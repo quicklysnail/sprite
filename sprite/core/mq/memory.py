@@ -228,10 +228,14 @@ class DiskQueue(BackendQueue):
         :param data:
         """
         self._lock.acquire()
-        self._is_closed()
-        data_length = self._write_one_message(data)
-        self._update_meta_info("write", data_length)
-        self._lock.release()
+        try:
+            self._is_closed()
+            data_length = self._write_one_message(data)
+            self._update_meta_info("write", data_length)
+        except Exception as e:
+            raise e
+        finally:
+            self._lock.release()
 
     def read(self) -> 'bytes':
         """
@@ -239,19 +243,23 @@ class DiskQueue(BackendQueue):
         :return:
         """
         self._lock.acquire()
-        self._is_closed()
-        # 先从内存队列里面读取消息
-        if self._read_queue.qsize() != 0:
-            # 从内存中消费一条消息
-            message_body = self._read_queue.get()
-            self._read_event.set()
-            # 更新
-            self._update_meta_info("read", self._read_file_skip_position)
-        else:
-            self._is_readable()
-            message_body, data_length = self._read_one_message()
-            self._update_meta_info("read", data_length)
-        self._lock.release()
+        try:
+            self._is_closed()
+            # 先从内存队列里面读取消息
+            if self._read_queue.qsize() != 0:
+                # 从内存中消费一条消息
+                message_body = self._read_queue.get()
+                self._read_event.set()
+                # 更新
+                self._update_meta_info("read", self._read_file_skip_position)
+            else:
+                self._is_readable()
+                message_body, data_length = self._read_one_message()
+                self._update_meta_info("read", data_length)
+        except Exception as e:
+            raise e
+        finally:
+            self._lock.release()
         return message_body
 
     @property
