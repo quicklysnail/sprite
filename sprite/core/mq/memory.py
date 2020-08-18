@@ -68,16 +68,6 @@ class BackendQueue:
 文件格式
     文件名："name" + ".diskqueue.%06d.dat"
     消息大小+body
-消息的读操作
-    如果readFile 文件描述符未初始化， 则需要先打开相应的文件，将偏移seek到相应位置，并初始化reader buffer
-    初始化后，首先读取文件的大小， 4个字节，然后通过文件大小获取相应的body 数据
-    更改相应的偏移。如果偏移达到文件最大值，则会关闭相应文件，读的文件编号 + 1
-消息的写操作
-    如果writeFile 文件描述符未初始化，则需要先打开相应的文件，将偏移seek到文件末尾。
-    验证消息的大小是否符合要求
-    将body 的大小和body 写入 buffer 中，并落地
-    depth +1，
-    如果文件大小大于每个文件的最大大小，则关闭当前文件，并将写文件的编号 + 1
 metadata元数据
     文件名："name" + .diskqueue.meta.dat
     metadata 数据包含5个字段, 内容如下：
