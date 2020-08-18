@@ -7,7 +7,6 @@ import threading
 import time
 from queue import Queue
 from typing import Tuple
-from sprite.mq.base import BaseMQ
 
 
 class EmptyMessageException(Exception): pass
