@@ -4,6 +4,7 @@
 # @File    : utils.py
 
 import inspect
+from uuid import uuid4
 import traceback
 import json
 import importlib
@@ -96,3 +97,7 @@ class ClassLoader:
     def clear(self):
         self.__class_object.clear()
         self.__unique_class_object_name.clear()
+
+
+def random_seq() -> 'str':
+   return uuid4().hex

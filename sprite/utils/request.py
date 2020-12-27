@@ -143,7 +143,7 @@ class BaseCrawlerCounter(metaclass=SingletonMetaClass):
         """
 
 
-class MemoryCrawlerCounter:
+class MemoryCrawlerCounter(BaseCrawlerCounter):
 
     def __init__(self, item_counter_unit: 'int', response_counter_unit: 'int'):
         self._start_time = None

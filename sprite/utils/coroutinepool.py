@@ -12,8 +12,6 @@ from asyncio import AbstractEventLoop, Task, Future
 from threading import Thread, Event
 from asyncio import Queue
 from asyncio.locks import Lock
-from functools import partial
-from sprite.const import COROUTINE_SLEEP_TIME, THREAD_SLEEP_TIME
 from sprite.settings import Settings
 from sprite.utils.log import get_logger
 from sprite.utils.utils import SingletonMetaClass
